@@ -1,0 +1,47 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Main",
+      "request": "launch",
+      "mainClass": "frc.robot.Main",
+      "projectName": "GoToBall"
+    },
+    {
+      "type": "java",
+      "name": "GoToBall",
+      "request": "launch",
+      "mainClass": "frc.robot.GoToBall",
+      "projectName": "GoToBall",
+      "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release",
+      "env": {
+        "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
+      },
+      "envFile": "${workspaceFolder}/.vscode/launch.env",
+      "console": "internalConsole",
+      "preLaunchTask": "build-jar",
+      "cwd": "${workspaceFolder}",
+      "windows": {
+        "env": {
+          "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
+        }
+      }
+    },
+    {
+      "type": "wpilib",
+      "name": "WPILib Desktop Debug",
+      "request": "launch",
+      "desktop": true
+    },
+    {
+      "type": "wpilib",
+      "name": "WPILib roboRIO Debug",
+      "request": "launch",
+      "desktop": false
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-jar",
+      "type": "shell",
+      "command": "./gradlew",
+      "args": ["jar", "--no-daemon", "--console=plain"],
+      "problemMatcher": [],
+      "windows": {
+        "command": "gradlew.bat",
+        "args": ["jar"]
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    }
+  ]
+}
