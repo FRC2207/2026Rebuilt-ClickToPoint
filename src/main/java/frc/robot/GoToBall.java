@@ -301,32 +301,6 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
-        
-        // First try to load ball detections from NetworkTables (two aligned arrays)
-        initNetworkTablesSubscribers();
-
-        // If we don't have NT subscribers then generate random balls immediately.
-        if (ballsXSub == null || ballsYSub == null) {
-            generateRandomBalls();
-        } else {
-            // We have NT subscribers. Try an immediate read; if it returns data, use it.
-            boolean loadedFromNT = updateBallsFromNetwork();
-            if (loadedFromNT) {
-                System.out.println("Placed " + balls.size() + " balls from NetworkTables");
-            } else {
-                // Start a short fallback timer: wait up to 5 seconds for NT to provide data
-                ntFallbackTimer = new javax.swing.Timer(5000, (ev) -> {
-                    boolean nowLoaded = updateBallsFromNetwork();
-                    if (!nowLoaded) {
-                        generateRandomBalls();
-                    } else {
-                        System.out.println("Placed " + balls.size() + " balls from NetworkTables (delayed)");
-                    }
-                    ((javax.swing.Timer) ev.getSource()).stop();
-                });
-                ntFallbackTimer.setRepeats(false);
-                ntFallbackTimer.start();
-            }
         }
         
         // Add mouse listener for clicks
@@ -347,13 +321,9 @@ class BallPanel extends JPanel {
                     double dx = ball.xMeters - clickXMeters;
                     double dy = ball.yMeters - clickYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Ball click radius ~20cm
-                    if (distMeters < 0.2) {
-                        System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n",
-                            ball.xMeters, ball.yMeters);
+                        System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n", clickXMeters, clickYMeters);
                         break;
-                    }
+                    
                 }
             }
             
@@ -409,7 +379,6 @@ class BallPanel extends JPanel {
                 }
             }
         });
-    }
     
     private boolean isValidPosition(double xMeters, double yMeters) {
         if (fieldImage == null) return true;  // Accept if no image
@@ -484,11 +453,6 @@ class BallPanel extends JPanel {
             " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
     }
-
-    // Do NOT generate random balls. When NetworkTables is not available we log an error.
-    private void generateRandomBalls() {
-        System.err.println("NetworkTables data not available; no balls loaded. Ensure the publisher is running and topics 'FuelPointsX' and 'FuelPointsY' are present.");
-    }
     
     @Override
     protected void paintComponent(Graphics g) {
@@ -506,101 +470,9 @@ class BallPanel extends JPanel {
             double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
             double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
             
-            // Draw all balls
-            for (Ball ball : balls) {
-                int pixelX = (int)(ball.xMeters * panelPixelsPerMeterX);
-                int pixelY = (int)(ball.yMeters * panelPixelsPerMeterY);
-                int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX)); // Ball radius ~10cm
-                
-                // Enlarge ball if it's being hovered
-                if (ball == hoveredBall) {
-                    pixelRadius = (int)(pixelRadius * 2);
-                }
-                
-                g2d.setColor(Color.YELLOW);
-                g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius, 
-                             pixelRadius * 2, pixelRadius * 2);
-                
-                // Draw border
-                g2d.setColor(Color.BLACK);
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawOval(pixelX - pixelRadius, pixelY - pixelRadius, 
-                            pixelRadius * 2, pixelRadius * 2);
-            }
         } else {
             // Fallback if image not loaded
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
-    }
-
-    // Initialize NetworkTables subscribers and start a periodic poller
-    // NOTE: publishers are now expected to be named "FuelPointsX" and "FuelPointsY".
-    // The incoming arrays are provided in inches (robot-relative); we convert inches -> meters
-    // (1 in = 0.0254 m) before transforming into field coordinates.
-    private void initNetworkTablesSubscribers() {
-        try {
-            var inst = NetworkTableInstance.getDefault();
-            ballsXSub = inst.getDoubleArrayTopic("FuelPointsX").subscribe(new double[0]);
-            ballsYSub = inst.getDoubleArrayTopic("FuelPointsY").subscribe(new double[0]);
-
-            ntPoller = new javax.swing.Timer(500, (ev) -> {
-                boolean changed = updateBallsFromNetwork();
-                if (changed) repaint();
-            });
-            ntPoller.setRepeats(true);
-            ntPoller.start();
-        } catch (Throwable t) {
-            System.err.println("NT init failed: " + t.getMessage());
-            ballsXSub = null;
-            ballsYSub = null;
-            if (ntPoller != null) ntPoller.stop();
-            ntPoller = null;
-        }
-    }
-
-    // Read arrays from NetworkTables, convert robot-relative coords to field coords, update balls.
-    // Returns true if we replaced the ball list with any valid NT detections.
-    private boolean updateBallsFromNetwork() {
-        if (ballsXSub == null || ballsYSub == null) return false;
-        double[] xs;
-        double[] ys;
-        try {
-            xs = ballsXSub.get();
-            ys = ballsYSub.get();
-        } catch (Throwable t) {
-            return false;
-        }
-        if (xs == null || ys == null) return false;
-        int n = Math.min(xs.length, ys.length);
-        if (n == 0) return false;
-
-        double rx = GoToBall.robotX;
-        double ry = GoToBall.robotY;
-        double rtheta = Math.toRadians(GoToBall.robotRot);
-        double cos = Math.cos(rtheta);
-        double sin = Math.sin(rtheta);
-
-        ArrayList<Ball> newBalls = new ArrayList<>();
-        // Convert incoming inches to meters (1 in = 0.0254 m) before transforming.
-        final double INCH_TO_M = 0.0254;
-        for (int i = 0; i < n; i++) {
-            double relX = xs[i] * INCH_TO_M;
-            double relY = ys[i] * INCH_TO_M;
-            double fx = rx + (cos * relX - sin * relY);
-            double fy = ry + (sin * relX + cos * relY);
-            if (fx >= fieldBoundMinX && fx <= fieldBoundMaxX && fy >= fieldBoundMinY && fy <= fieldBoundMaxY) {
-                if (isValidPosition(fx, fy)) {
-                    newBalls.add(new Ball(fx, fy));
-                }
-            }
-        }
-
-        if (!newBalls.isEmpty()) {
-            balls.clear();
-            balls.addAll(newBalls);
-            return true;
-        }
-        return false;
-    }
-}
+    
