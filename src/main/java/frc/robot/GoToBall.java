@@ -110,24 +110,20 @@ public class GoToBall {
 
 }
 
-class Ball {
-    double xMeters, yMeters;  // Field coordinates in meters
-    int radius = 10;  // Ball radius in pixels
-    
-    public Ball(double xMeters, double yMeters) {
+class FuelStruct {
+    public double xMeters, yMeters;
+    public int radius;
+    public FuelStruct(double xMeters, double yMeters, int radius) {
         this.xMeters = xMeters;
         this.yMeters = yMeters;
+        this.radius = radius;
     }
-    
-    // Convert meter coordinates to pixel coordinates for display
     int getPixelX() {
         return (int)(xMeters * GoToBall.PIXELS_PER_METER) + 25;
     }
-    
     int getPixelY() {
         return (int)(yMeters * GoToBall.PIXELS_PER_METER) + 25;
     }
-    
     public boolean contains(int px, int py) {
         int dx = getPixelX() - px;
         int dy = getPixelY() - py;
@@ -135,162 +131,20 @@ class Ball {
     }
 }
 
-class NavGrid {
-    double fieldWidth, fieldHeight;
-    double nodeSize;
-    boolean[][] grid;
-    
-    public NavGrid(String jsonPath) {
-        fieldWidth = 16.54;  // Default from navgrid
-        fieldHeight = 8.07;  // Default from navgrid
-        nodeSize = 0.3;      // Default
-        
-        try {
-            String content = new String(Files.readAllBytes(new File(jsonPath).toPath()));
-            parseJson(content);
-        } catch (Exception e) {
-            System.err.println("Failed to load navgrid: " + e.getMessage());
-            e.printStackTrace();
-            grid = new boolean[0][0];
-        }
-    }
-    
-    private void parseJson(String json) {
-        // Extract field_size (x and y coordinates)
-        fieldWidth = extractJsonDouble(json, "\"x\":");
-        fieldHeight = extractJsonDouble(json, "\"y\":");
-        
-        // Extract nodeSizeMeters
-        nodeSize = extractJsonDouble(json, "\"nodeSizeMeters\":");
-        
-        // Extract grid - the array starts with "grid":[[
-        int gridIndex = json.indexOf("\"grid\":[[");
-        if (gridIndex >= 0) {
-            // Start parsing from [[ 
-            int startIdx = gridIndex + 7; // Position of first [
-            ArrayList<boolean[]> rows = new ArrayList<>();
-            
-            int i = startIdx;
-            while (i < json.length()) {
-                if (json.charAt(i) == '[') {
-                    // Found start of a row
-                    int end = json.indexOf(']', i);
-                    if (end > i) {
-                        String rowContent = json.substring(i + 1, end);
-                        String[] values = rowContent.split(",");
-                        boolean[] row = new boolean[values.length];
-                        
-                        for (int j = 0; j < values.length; j++) {
-                            row[j] = values[j].trim().equals("true");
-                        }
-                        rows.add(row);
-                        i = end + 1;
-                    } else {
-                        break;
-                    }
-                } else if (json.charAt(i) == ']' && i + 1 < json.length() && json.charAt(i + 1) == '}') {
-                    // End of grid
-                    break;
-                } else {
-                    i++;
-                }
-            }
-            
-            if (rows.size() > 0) {
-                grid = new boolean[rows.size()][];
-                for (int j = 0; j < rows.size(); j++) {
-                    grid[j] = rows.get(j);
-                }
-                
-                // Count walkable vs blocked
-                System.out.println("NavGrid loaded: " + grid.length + " rows x " + grid[0].length + " cols");
-            }
-        }
-    }
-    
-    private double extractJsonDouble(String json, String key) {
-        int pos = json.indexOf(key);
-        if (pos < 0) return 0;
-        
-        int start = pos + key.length();
-        int end = json.length();
-        
-        // Find next comma or bracket
-        for (int i = start; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == ',' || c == '}' || c == ']') {
-                end = i;
-                break;
-            }
-        }
-        
-        String numStr = json.substring(start, end).trim();
-        try {
-            return Double.parseDouble(numStr);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-    
-    // Check if a point (in meters) is walkable
-    public boolean isWalkable(double xMeters, double yMeters) {
-        if (grid.length == 0) return true;
-        
-        // Convert meters to grid coordinates
-        int gridX = (int)(xMeters / nodeSize);
-        int gridY = (int)(yMeters / nodeSize);
-        
-        // Bounds check
-        if (gridX < 0 || gridX >= grid[0].length || gridY < 0 || gridY >= grid.length) {
-            return false;
-        }
-        
-        // Invert the logic - PathPlanner uses true for walkable, but we need to check if it's NOT an obstacle
-        // Actually, in PathPlanner a 'true' node means walkable. So we should return the value as-is.
-        // But the balls are still landing on obstacles, so maybe the coordinate system is wrong?
-        // Let me try NOT inverting the X coordinate mapping
-        boolean result = grid[gridY][gridX];
-        return result;
-    }
-}
-
-class Obstacle {
-    double xMeters, yMeters;  // Field coordinates in meters
-    double radiusMeters;      // Radius in meters
-    
-    public Obstacle(double xMeters, double yMeters, double radiusMeters) {
-        this.xMeters = xMeters;
-        this.yMeters = yMeters;
-        this.radiusMeters = radiusMeters;
-    }
-    
-    // Check if a point (in meters) collides with this obstacle
-    public boolean contains(double x, double y) {
-        double dx = x - xMeters;
-        double dy = y - yMeters;
-        return (dx * dx + dy * dy) <= (radiusMeters * radiusMeters);
-    }
-}
-
 class BallPanel extends JPanel {
-    ArrayList<Ball> balls;
+    java.util.List<FuelStruct> vision_data;
     BufferedImage fieldImage;
     double fieldBoundMinX = 0, fieldBoundMaxX = 16.46;
     double fieldBoundMinY = 0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
-    Ball hoveredBall = null;
-    // NetworkTables subscribers for two aligned arrays: Xs and Ys (robot-relative, meters)
+    FuelStruct hoveredBall = null;
     private DoubleArraySubscriber ballsXSub = null;
     private DoubleArraySubscriber ballsYSub = null;
     private javax.swing.Timer ntPoller = null;
-    // If NT is available but hasn't provided data yet, we wait a short time before
-    // falling back to random placement. This timer triggers the fallback generation.
     private javax.swing.Timer ntFallbackTimer = null;
-    
+
     public BallPanel() {
-        balls = new ArrayList<>();      
-        
-        // Load field image - ONLY dependency
+        vision_data = new java.util.ArrayList<>();
         try {
             fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png"));
             pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_LENGTH;
@@ -301,54 +155,33 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
-        
-        // First try to load ball detections from NetworkTables (two aligned arrays)
-        initNetworkTablesSubscribers();
-
-        // If we don't have NT subscribers then generate random balls immediately.
-        if (ballsXSub == null || ballsYSub == null) {
-            generateRandomBalls();
+        boolean loadedFromNT = updateBallsFromNetwork();
+        if (loadedFromNT) {
+            System.out.println("Placed " + vision_data.size() + " balls from NetworkTables");
         } else {
-            // We have NT subscribers. Try an immediate read; if it returns data, use it.
-            boolean loadedFromNT = updateBallsFromNetwork();
-            if (loadedFromNT) {
-                System.out.println("Placed " + balls.size() + " balls from NetworkTables");
-            } else {
-                // Start a short fallback timer: wait up to 5 seconds for NT to provide data
-                ntFallbackTimer = new javax.swing.Timer(5000, (ev) -> {
-                    boolean nowLoaded = updateBallsFromNetwork();
-                    if (!nowLoaded) {
-                        generateRandomBalls();
-                    } else {
-                        System.out.println("Placed " + balls.size() + " balls from NetworkTables (delayed)");
-                    }
-                    ((javax.swing.Timer) ev.getSource()).stop();
-                });
-                ntFallbackTimer.setRepeats(false);
-                ntFallbackTimer.start();
-            }
+            ntFallbackTimer = new javax.swing.Timer(5000, (ev) -> {
+                boolean nowLoaded = updateBallsFromNetwork();
+                if (nowLoaded) {
+                    System.out.println("Placed " + vision_data.size() + " balls from NetworkTables (delayed)");
+                }
+                ((javax.swing.Timer) ev.getSource()).stop();
+            });
+            ntFallbackTimer.setRepeats(false);
+            ntFallbackTimer.start();
         }
-        
-        // Add mouse listener for clicks
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // Convert screen coordinates to field meters
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
                 double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
-                
                 double clickXMeters = e.getX() / imagePixelsPerMeterX;
                 double clickYMeters = e.getY() / imagePixelsPerMeterY;
-                
-                // Check if any ball was clicked
-                for (Ball ball : balls) {
+                for (FuelStruct ball : vision_data) {
                     double dx = ball.xMeters - clickXMeters;
                     double dy = ball.yMeters - clickYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Ball click radius ~20cm
                     if (distMeters < 0.2) {
                         System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n",
                             ball.xMeters, ball.yMeters);
@@ -356,55 +189,35 @@ class BallPanel extends JPanel {
                     }
                 }
             }
-            
             @Override
             public void mouseExited(MouseEvent e) {
-                // Clear hover when mouse leaves panel
                 if (hoveredBall != null) {
                     hoveredBall = null;
                     repaint();
                 }
             }
         });
-        
-        // Add mouse motion listener for hover effect
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                // Convert screen coordinates to field meters
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
                 double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
-                
                 double mouseXMeters = e.getX() / imagePixelsPerMeterX;
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
-                
-                // Check if mouse is over any ball
-                Ball newHoveredBall = null;
-                for (Ball ball : balls) {
+                FuelStruct newHoveredBall = null;
+                for (FuelStruct ball : vision_data) {
                     double dx = ball.xMeters - mouseXMeters;
                     double dy = ball.yMeters - mouseYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Hover detection radius ~20cm
                     if (distMeters < 0.2) {
                         newHoveredBall = ball;
                         break;
                     }
                 }
-                
-                // Update hover state and repaint if changed
                 if (newHoveredBall != hoveredBall) {
                     hoveredBall = newHoveredBall;
-                    repaint();
-                }
-            }
-            
-            public void mouseExited(MouseEvent e) {
-                // Clear hover when mouse leaves panel
-                if (hoveredBall != null) {
-                    hoveredBall = null;
                     repaint();
                 }
             }
@@ -485,50 +298,33 @@ class BallPanel extends JPanel {
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
     }
 
-    // Do NOT generate random balls. When NetworkTables is not available we log an error.
-    private void generateRandomBalls() {
-        System.err.println("NetworkTables data not available; no balls loaded. Ensure the publisher is running and topics 'FuelPointsX' and 'FuelPointsY' are present.");
-    }
-    
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
         if (fieldImage != null) {
-            // Draw the field image scaled to fill the panel
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            
-            // Calculate panel scaling
             double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
             double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
-            
-            // Draw all balls
-            for (Ball ball : balls) {
+            for (FuelStruct ball : vision_data) {
                 int pixelX = (int)(ball.xMeters * panelPixelsPerMeterX);
                 int pixelY = (int)(ball.yMeters * panelPixelsPerMeterY);
-                int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX)); // Ball radius ~10cm
-                
-                // Enlarge ball if it's being hovered
+                int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX));
                 if (ball == hoveredBall) {
                     pixelRadius = (int)(pixelRadius * 2);
                 }
-                
                 g2d.setColor(Color.YELLOW);
-                g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius, 
+                g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius,
                              pixelRadius * 2, pixelRadius * 2);
-                
-                // Draw border
                 g2d.setColor(Color.BLACK);
                 g2d.setStroke(new BasicStroke(2));
-                g2d.drawOval(pixelX - pixelRadius, pixelY - pixelRadius, 
+                g2d.drawOval(pixelX - pixelRadius, pixelY - pixelRadius,
                             pixelRadius * 2, pixelRadius * 2);
             }
         } else {
-            // Fallback if image not loaded
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
@@ -574,15 +370,12 @@ class BallPanel extends JPanel {
         if (xs == null || ys == null) return false;
         int n = Math.min(xs.length, ys.length);
         if (n == 0) return false;
-
         double rx = GoToBall.robotX;
         double ry = GoToBall.robotY;
         double rtheta = Math.toRadians(GoToBall.robotRot);
         double cos = Math.cos(rtheta);
         double sin = Math.sin(rtheta);
-
-        ArrayList<Ball> newBalls = new ArrayList<>();
-        // Convert incoming inches to meters (1 in = 0.0254 m) before transforming.
+        java.util.List<FuelStruct> newBalls = new java.util.ArrayList<>();
         final double INCH_TO_M = 0.0254;
         for (int i = 0; i < n; i++) {
             double relX = xs[i] * INCH_TO_M;
@@ -591,14 +384,13 @@ class BallPanel extends JPanel {
             double fy = ry + (sin * relX + cos * relY);
             if (fx >= fieldBoundMinX && fx <= fieldBoundMaxX && fy >= fieldBoundMinY && fy <= fieldBoundMaxY) {
                 if (isValidPosition(fx, fy)) {
-                    newBalls.add(new Ball(fx, fy));
+                    newBalls.add(new FuelStruct(fx, fy, 10));
                 }
             }
         }
-
         if (!newBalls.isEmpty()) {
-            balls.clear();
-            balls.addAll(newBalls);
+            vision_data.clear();
+            vision_data.addAll(newBalls);
             return true;
         }
         return false;
