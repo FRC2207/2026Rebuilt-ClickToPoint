@@ -301,7 +301,6 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
-        }
         
         // Add mouse listener for clicks
         addMouseListener(new MouseAdapter() {
@@ -316,24 +315,8 @@ class BallPanel extends JPanel {
                 double clickXMeters = e.getX() / imagePixelsPerMeterX;
                 double clickYMeters = e.getY() / imagePixelsPerMeterY;
                 
-                // Check if any ball was clicked
-                for (Ball ball : balls) {
-                    double dx = ball.xMeters - clickXMeters;
-                    double dy = ball.yMeters - clickYMeters;
-                    double distMeters = Math.sqrt(dx * dx + dy * dy);
-                        System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n", clickXMeters, clickYMeters);
-                        break;
-                    
-                }
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                // Clear hover when mouse leaves panel
-                if (hoveredBall != null) {
-                    hoveredBall = null;
-                    repaint();
-                }
+                // Output the Pose2d for where was clicked
+                System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n", clickXMeters, clickYMeters);
             }
         });
         
@@ -370,16 +353,8 @@ class BallPanel extends JPanel {
                     repaint();
                 }
             }
-            
-            public void mouseExited(MouseEvent e) {
-                // Clear hover when mouse leaves panel
-                if (hoveredBall != null) {
-                    hoveredBall = null;
-                    repaint();
-                }
-            }
         });
-    
+    }
     private boolean isValidPosition(double xMeters, double yMeters) {
         if (fieldImage == null) return true;  // Accept if no image
         
@@ -475,4 +450,5 @@ class BallPanel extends JPanel {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
-    
+    }
+}

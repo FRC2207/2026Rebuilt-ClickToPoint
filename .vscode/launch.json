@@ -6,6 +6,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "GoToBall",
+      "request": "launch",
+      "mainClass": "frc.robot.GoToBall",
+      "projectName": "2026Rebuilt-ClickToPoint"
+    },
+    {
+      "type": "java",
       "name": "Main",
       "request": "launch",
       "mainClass": "frc.robot.Main",
