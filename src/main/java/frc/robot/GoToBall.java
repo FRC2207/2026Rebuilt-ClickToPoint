@@ -149,6 +149,7 @@ class BallPanel extends JPanel {
         // Timer to update vision_data from NetworkTables every 100ms
         javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
             FuelStruct[] ballsRaw = GoToBall.fuelSub.get();
+            System.out.println(ballsRaw.length);
             Pose2d robotPose = GoToBall.currentPose;
             double robotX = robotPose.getX();
             double robotY = robotPose.getY();
