@@ -18,6 +18,8 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.FuelStruct;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 
 
 public class GoToBall extends SubsystemBase{
@@ -41,7 +43,7 @@ public class GoToBall extends SubsystemBase{
     
     public static void main(String[] args) {
         inst.startClient4("GoToBallViewer");          // set a client identity name
-        inst.setServer("10.22.7.2", 5810);            // simulator runs NT on port 5810
+        inst.setServer("localhost", 5810);            // simulator runs NT on port 5810
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
         clickPub = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
@@ -116,8 +118,8 @@ public class GoToBall extends SubsystemBase{
             JFrame frame = new JFrame("FRC 2026 Field Pose Picker");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(
-                (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50,
-                (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50
+                (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50,
+                (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50
             );
             frame.setLocationRelativeTo(null);
             
@@ -144,6 +146,15 @@ class BallPanel extends JPanel {
         vision_data = new java.util.ArrayList<>();
         try {
             fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png"));
+            int w = fieldImage.getWidth();
+            int h = fieldImage.getHeight();
+            BufferedImage rotated = new BufferedImage(h, w, fieldImage.getType());
+            Graphics2D g2 = rotated.createGraphics();
+            g2.translate(h, 0);
+            g2.rotate(Math.PI / 2);
+            g2.drawImage(fieldImage, 0, 0, null);
+            g2.dispose();
+            fieldImage = rotated;
             pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_LENGTH;
             pixelsPerMeterY = fieldImage.getHeight() / GoToBall.FIELD_WIDTH;
             detectFieldBoundaries();
@@ -166,7 +177,9 @@ class BallPanel extends JPanel {
             for (FuelStruct ball : ballsRaw) {
                 double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
                 double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
-                fieldRelativeBalls.add(new FuelStruct((float) fieldX, (float) fieldY));
+                double rotatedX = 8.23 - fieldY;
+                double rotatedY = fieldX;
+                fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
             repaint();
@@ -196,8 +209,8 @@ class BallPanel extends JPanel {
             public void mousePressed(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
                 double clickXMeters = e.getX() / imagePixelsPerMeterX;
                 double clickYMeters = e.getY() / imagePixelsPerMeterY;
                 for (FuelStruct ball : vision_data) {
@@ -225,8 +238,8 @@ class BallPanel extends JPanel {
             public void mouseMoved(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
                 double mouseXMeters = e.getX() / imagePixelsPerMeterX;
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
                 FuelStruct newHoveredBall = null;
@@ -330,8 +343,8 @@ class BallPanel extends JPanel {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
             for (FuelStruct ball : vision_data) {
                 int pixelX = (int)(ball.x * panelPixelsPerMeterX);
                 int pixelY = (int)(ball.y * panelPixelsPerMeterY);
