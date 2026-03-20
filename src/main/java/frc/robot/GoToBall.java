@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -24,7 +25,9 @@ public class GoToBall {
     static final double robotX = 1.0;
     static final double robotY = 4.3;
     static final double robotRot = 36.0;
-    
+
+
+
     
     public static void main(String[] args) {
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
@@ -273,10 +276,14 @@ class Obstacle {
 }
 
 class BallPanel extends JPanel {
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    NetworkTable table = inst.getTable("VisionData");
+    StructPublisher<Pose2d> publisher = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
+
     ArrayList<Ball> balls;
     BufferedImage fieldImage;
-    double fieldBoundMinX = 0, fieldBoundMaxX = 16.46;
-    double fieldBoundMinY = 0, fieldBoundMaxY = 8.23;
+    double fieldBoundMinX = 0.0, fieldBoundMaxX = 16.46;
+    double fieldBoundMinY = 0.0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     Ball hoveredBall = null;
     // NetworkTables subscribers for two aligned arrays: Xs and Ys (robot-relative, meters)
@@ -311,12 +318,19 @@ class BallPanel extends JPanel {
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
                 double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
-                
-                double clickXMeters = e.getX() / imagePixelsPerMeterX;
-                double clickYMeters = e.getY() / imagePixelsPerMeterY;
-                
-                // Output the Pose2d for where was clicked
-                System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n", clickXMeters, clickYMeters);
+                double clickXMeters = (e.getX() / imagePixelsPerMeterX) - fieldBoundMinX;
+                double clickYMeters = (e.getY() / imagePixelsPerMeterY) - fieldBoundMinY;
+                // Only allow clicks inside the white border
+                double maxXMeters = fieldBoundMaxX - fieldBoundMinX;
+                double maxYMeters = fieldBoundMaxY - fieldBoundMinY;
+                if (clickXMeters >= 0 && clickXMeters <= maxXMeters &&
+                    clickYMeters >= 0 && clickYMeters <= maxYMeters) {
+                        Pose2d clickPose2d = new Pose2d(clickXMeters, clickYMeters, new Rotation2d());
+                        System.out.println(clickPose2d.toString());
+                        publisher.set(clickPose2d);
+                } else {
+                    System.out.println("Click is outside the field border, ignored.");
+                }
             }
         });
         
