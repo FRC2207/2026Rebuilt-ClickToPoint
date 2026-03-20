@@ -12,6 +12,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructArraySubscriber;
 import edu.wpi.first.networktables.StructSubscriber;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -33,6 +34,7 @@ public class GoToBall extends SubsystemBase{
     public static StructArraySubscriber<FuelStruct> fuelSub;
     public static StructSubscriber<Pose2d> poseSub;
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
+    public static StructPublisher<Pose2d> clickPub;
     public void periodic(){
         currentPose = GoToBall.poseSub.get();
     }
@@ -42,6 +44,7 @@ public class GoToBall extends SubsystemBase{
         inst.setServer("localhost", 5810);            // simulator runs NT on port 5810
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+        clickPub = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
         System.out.println(inst.isConnected());
         
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
@@ -204,6 +207,7 @@ class BallPanel extends JPanel {
                     if (distMeters < 0.2) {
                         Pose2d BallPose2d = new Pose2d(ball.x, ball.y, new Rotation2d());
                         System.out.println(BallPose2d.toString());
+                        GoToBall.clickPub.set(BallPose2d);
                         break;
                     }
                 }
