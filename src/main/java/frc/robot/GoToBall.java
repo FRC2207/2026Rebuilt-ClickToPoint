@@ -146,6 +146,25 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
+        // Timer to update vision_data from NetworkTables every 100ms
+        javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
+            FuelStruct[] ballsRaw = GoToBall.fuelSub.get();
+            Pose2d robotPose = GoToBall.currentPose;
+            double robotX = robotPose.getX();
+            double robotY = robotPose.getY();
+            double robotTheta = robotPose.getRotation().getRadians();
+            double cosTheta = Math.cos(robotTheta);
+            double sinTheta = Math.sin(robotTheta);
+            java.util.List<FuelStruct> fieldRelativeBalls = new java.util.ArrayList<>();
+            for (FuelStruct ball : ballsRaw) {
+                double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
+                double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
+                fieldRelativeBalls.add(new FuelStruct((float) fieldX, (float) fieldY));
+            }
+            vision_data = fieldRelativeBalls;
+            repaint();
+        });
+        ntUpdateTimer.start();
         // vision_data should be populated manually.
         // Convert bot-relative coordinates to field-relative using Robot.currentPose
         // Math:
