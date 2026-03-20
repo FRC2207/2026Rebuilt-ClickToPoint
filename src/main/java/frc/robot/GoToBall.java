@@ -5,15 +5,18 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.io.File;
 import java.nio.file.Files;
-import edu.wpi.first.networktables.DoubleArraySubscriber;
+import java.util.List;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.StructArraySubscriber;
+import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import frc.robot.FuelStruct;
+import frc.robot.Robot;
 
 
 public class GoToBall {
@@ -24,9 +27,16 @@ public class GoToBall {
     static final double robotX = 1.0;
     static final double robotY = 4.3;
     static final double robotRot = 36.0;
-    
+    public static NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    public static NetworkTable table = inst.getTable("VisionData");
+    public static NetworkTable poseTable = inst.getTable("AdvantageKit");
+    public static StructArraySubscriber<FuelStruct> fuelSub;
+    public static StructSubscriber<Pose2d> poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
     
     public static void main(String[] args) {
+        fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
+
+        
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
         // users to manually set LD_LIBRARY_PATH or -Djava.library.path.
@@ -110,26 +120,6 @@ public class GoToBall {
 
 }
 
-class FuelStruct {
-    public double xMeters, yMeters;
-    public int radius;
-    public FuelStruct(double xMeters, double yMeters, int radius) {
-        this.xMeters = xMeters;
-        this.yMeters = yMeters;
-        this.radius = radius;
-    }
-    int getPixelX() {
-        return (int)(xMeters * GoToBall.PIXELS_PER_METER) + 25;
-    }
-    int getPixelY() {
-        return (int)(yMeters * GoToBall.PIXELS_PER_METER) + 25;
-    }
-    public boolean contains(int px, int py) {
-        int dx = getPixelX() - px;
-        int dy = getPixelY() - py;
-        return (dx * dx + dy * dy) <= (radius * radius);
-    }
-}
 
 class BallPanel extends JPanel {
     java.util.List<FuelStruct> vision_data;
@@ -138,10 +128,7 @@ class BallPanel extends JPanel {
     double fieldBoundMinY = 0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     FuelStruct hoveredBall = null;
-    private DoubleArraySubscriber ballsXSub = null;
-    private DoubleArraySubscriber ballsYSub = null;
-    private javax.swing.Timer ntPoller = null;
-    private javax.swing.Timer ntFallbackTimer = null;
+    // NetworkTables and array subscription removed. Populate vision_data manually.
 
     public BallPanel() {
         vision_data = new java.util.ArrayList<>();
@@ -155,20 +142,25 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
-        boolean loadedFromNT = updateBallsFromNetwork();
-        if (loadedFromNT) {
-            System.out.println("Placed " + vision_data.size() + " balls from NetworkTables");
-        } else {
-            ntFallbackTimer = new javax.swing.Timer(5000, (ev) -> {
-                boolean nowLoaded = updateBallsFromNetwork();
-                if (nowLoaded) {
-                    System.out.println("Placed " + vision_data.size() + " balls from NetworkTables (delayed)");
-                }
-                ((javax.swing.Timer) ev.getSource()).stop();
-            });
-            ntFallbackTimer.setRepeats(false);
-            ntFallbackTimer.start();
+        // vision_data should be populated manually.
+        // Convert bot-relative coordinates to field-relative using Robot.currentPose
+        // Math:
+        // X_field = robotX + cos(theta) * ball.x - sin(theta) * ball.y
+        // Y_field = robotY + sin(theta) * ball.x + cos(theta) * ball.y
+        java.util.List<FuelStruct> fieldRelativeBalls = new java.util.ArrayList<>();
+        // Robot.currentPose must be public static in Robot.java
+        Pose2d robotPose = Robot.currentPose;
+        double robotX = robotPose.getX();
+        double robotY = robotPose.getY();
+        double robotTheta = robotPose.getRotation().getRadians();
+        double cosTheta = Math.cos(robotTheta);
+        double sinTheta = Math.sin(robotTheta);
+        for (FuelStruct ball : vision_data) {
+            double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
+            double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
+            fieldRelativeBalls.add(new FuelStruct((float) fieldX, (float) fieldY));
         }
+        vision_data = fieldRelativeBalls;
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -179,12 +171,12 @@ class BallPanel extends JPanel {
                 double clickXMeters = e.getX() / imagePixelsPerMeterX;
                 double clickYMeters = e.getY() / imagePixelsPerMeterY;
                 for (FuelStruct ball : vision_data) {
-                    double dx = ball.xMeters - clickXMeters;
-                    double dy = ball.yMeters - clickYMeters;
+                    double dx = ball.x - clickXMeters;
+                    double dy = ball.y - clickYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
                     if (distMeters < 0.2) {
-                        System.out.printf("new Pose2d(%.2f, %.2f, new Rotation2d())%n",
-                            ball.xMeters, ball.yMeters);
+                        Pose2d BallPose2d = new Pose2d(ball.x, ball.y, new Rotation2d());
+                        System.out.println(BallPose2d.toString());
                         break;
                     }
                 }
@@ -208,8 +200,8 @@ class BallPanel extends JPanel {
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
                 FuelStruct newHoveredBall = null;
                 for (FuelStruct ball : vision_data) {
-                    double dx = ball.xMeters - mouseXMeters;
-                    double dy = ball.yMeters - mouseYMeters;
+                    double dx = ball.x - mouseXMeters;
+                    double dy = ball.y - mouseYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
                     if (distMeters < 0.2) {
                         newHoveredBall = ball;
@@ -310,8 +302,8 @@ class BallPanel extends JPanel {
             double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
             double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
             for (FuelStruct ball : vision_data) {
-                int pixelX = (int)(ball.xMeters * panelPixelsPerMeterX);
-                int pixelY = (int)(ball.yMeters * panelPixelsPerMeterY);
+                int pixelX = (int)(ball.x * panelPixelsPerMeterX);
+                int pixelY = (int)(ball.y * panelPixelsPerMeterY);
                 int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX));
                 if (ball == hoveredBall) {
                     pixelRadius = (int)(pixelRadius * 2);
@@ -334,65 +326,14 @@ class BallPanel extends JPanel {
     // NOTE: publishers are now expected to be named "FuelPointsX" and "FuelPointsY".
     // The incoming arrays are provided in inches (robot-relative); we convert inches -> meters
     // (1 in = 0.0254 m) before transforming into field coordinates.
-    private void initNetworkTablesSubscribers() {
-        try {
-            var inst = NetworkTableInstance.getDefault();
-            ballsXSub = inst.getDoubleArrayTopic("FuelPointsX").subscribe(new double[0]);
-            ballsYSub = inst.getDoubleArrayTopic("FuelPointsY").subscribe(new double[0]);
-
-            ntPoller = new javax.swing.Timer(500, (ev) -> {
-                boolean changed = updateBallsFromNetwork();
-                if (changed) repaint();
-            });
-            ntPoller.setRepeats(true);
-            ntPoller.start();
-        } catch (Throwable t) {
-            System.err.println("NT init failed: " + t.getMessage());
-            ballsXSub = null;
-            ballsYSub = null;
-            if (ntPoller != null) ntPoller.stop();
-            ntPoller = null;
-        }
+    private void initNetworkTablesSubscriber() {
+        // Removed: NetworkTables array subscription. No-op.
     }
 
     // Read arrays from NetworkTables, convert robot-relative coords to field coords, update balls.
     // Returns true if we replaced the ball list with any valid NT detections.
     private boolean updateBallsFromNetwork() {
-        if (ballsXSub == null || ballsYSub == null) return false;
-        double[] xs;
-        double[] ys;
-        try {
-            xs = ballsXSub.get();
-            ys = ballsYSub.get();
-        } catch (Throwable t) {
-            return false;
-        }
-        if (xs == null || ys == null) return false;
-        int n = Math.min(xs.length, ys.length);
-        if (n == 0) return false;
-        double rx = GoToBall.robotX;
-        double ry = GoToBall.robotY;
-        double rtheta = Math.toRadians(GoToBall.robotRot);
-        double cos = Math.cos(rtheta);
-        double sin = Math.sin(rtheta);
-        java.util.List<FuelStruct> newBalls = new java.util.ArrayList<>();
-        final double INCH_TO_M = 0.0254;
-        for (int i = 0; i < n; i++) {
-            double relX = xs[i] * INCH_TO_M;
-            double relY = ys[i] * INCH_TO_M;
-            double fx = rx + (cos * relX - sin * relY);
-            double fy = ry + (sin * relX + cos * relY);
-            if (fx >= fieldBoundMinX && fx <= fieldBoundMaxX && fy >= fieldBoundMinY && fy <= fieldBoundMaxY) {
-                if (isValidPosition(fx, fy)) {
-                    newBalls.add(new FuelStruct(fx, fy, 10));
-                }
-            }
-        }
-        if (!newBalls.isEmpty()) {
-            vision_data.clear();
-            vision_data.addAll(newBalls);
-            return true;
-        }
+        // Removed: NetworkTables array unpacking. No-op.
         return false;
     }
 }

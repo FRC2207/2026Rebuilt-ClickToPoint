@@ -5,17 +5,22 @@
 package frc.robot;
 
 import edu.wpi.first.hal.DriverStationJNI;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.util.WPIUtilJNI;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.internal.DriverStationModeThread;
+import frc.robot.GoToBall;
 
 /**
  * This class is run automatically. If you change the name of this class or the package after
  * creating this project, you must also update the Main.java file in the project.
  */
-public class Robot extends RobotBase {
-  public Robot() {}
+public class Robot extends TimedRobot {
+  public static Pose2d currentPose;
+  public Robot() {
+    Pose2d currentPose = GoToBall.poseSub.get();
+  }
 
   public void disabled() {}
 
