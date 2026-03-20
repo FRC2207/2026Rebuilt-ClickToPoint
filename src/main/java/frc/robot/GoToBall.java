@@ -41,7 +41,7 @@ public class GoToBall extends SubsystemBase{
     
     public static void main(String[] args) {
         inst.startClient4("GoToBallViewer");          // set a client identity name
-        inst.setServer("localhost", 5810);            // simulator runs NT on port 5810
+        inst.setServer("10.22.7.2", 5810);            // simulator runs NT on port 5810
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
         clickPub = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
