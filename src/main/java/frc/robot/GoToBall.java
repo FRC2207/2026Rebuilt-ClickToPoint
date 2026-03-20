@@ -276,6 +276,66 @@ class Obstacle {
 }
 
 class BallPanel extends JPanel {
+    private boolean isValidPosition(double xMeters, double yMeters) {
+        if (fieldImage == null) return true;  // Accept if no image
+        // Convert field meters to image pixels
+        int pixelX = (int)(xMeters * pixelsPerMeterX);
+        int pixelY = (int)(yMeters * pixelsPerMeterY);
+        // Bounds check
+        if (pixelX < 0 || pixelX >= fieldImage.getWidth() || pixelY < 0 || pixelY >= fieldImage.getHeight()) {
+            return false;
+        }
+        int rgb = fieldImage.getRGB(pixelX, pixelY);
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        // Reject RED pixels (obstacles) - R significantly higher than G and B
+        boolean isRed = r > 100 && g < 110 && b < 110;
+        // Reject BLUE pixels (obstacles) - B significantly higher than R and G
+        // Stricter thresholds: lower B threshold, higher R/G thresholds
+        boolean isBlue = b > 100 && r < 120 && g < 120;
+        return !(isRed || isBlue);
+    }
+
+    private void detectFieldBoundaries() {
+        if (fieldImage == null) return;
+        int width = fieldImage.getWidth();
+        int height = fieldImage.getHeight();
+        // Find white rectangle boundaries - look for white pixels (RGB > 200) excluding dark obstacles
+        int minPixelX = width, maxPixelX = 0;
+        int minPixelY = height, maxPixelY = 0;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                int rgb = fieldImage.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                // Check for white pixels that are not dark obstacles
+                if (r > 200 && g > 200 && b > 200) {
+                    if (x < minPixelX) minPixelX = x;
+                    if (x > maxPixelX) maxPixelX = x;
+                    if (y < minPixelY) minPixelY = y;
+                    if (y > maxPixelY) maxPixelY = y;
+                }
+            }
+        }
+        // Convert pixel coordinates to field meters
+        fieldBoundMinX = minPixelX / pixelsPerMeterX;
+        fieldBoundMaxX = maxPixelX / pixelsPerMeterX;
+        fieldBoundMinY = minPixelY / pixelsPerMeterY;
+        fieldBoundMaxY = maxPixelY / pixelsPerMeterY;
+        // Expand boundaries inward to stay INSIDE the white border lines
+        // The white lines are the boundary, we want to fill the interior
+        double marginX = 0.08;  // Margin to get inside the border
+        double marginY = 0.08;
+        fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
+        fieldBoundMaxX = Math.min(GoToBall.FIELD_LENGTH, fieldBoundMaxX - marginX);
+        fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
+        fieldBoundMaxY = Math.min(GoToBall.FIELD_WIDTH, fieldBoundMaxY - marginY);
+        System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
+            " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
+            String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
+    }
     NetworkTableInstance inst = NetworkTableInstance.getDefault();
     NetworkTable table = inst.getTable("VisionData");
     StructPublisher<Pose2d> publisher = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
@@ -368,79 +428,6 @@ class BallPanel extends JPanel {
                 }
             }
         });
-    }
-    private boolean isValidPosition(double xMeters, double yMeters) {
-        if (fieldImage == null) return true;  // Accept if no image
-        
-        // Convert field meters to image pixels
-        int pixelX = (int)(xMeters * pixelsPerMeterX);
-        int pixelY = (int)(yMeters * pixelsPerMeterY);
-        
-        // Bounds check
-        if (pixelX < 0 || pixelX >= fieldImage.getWidth() || pixelY < 0 || pixelY >= fieldImage.getHeight()) {
-            return false;
-        }
-        
-        int rgb = fieldImage.getRGB(pixelX, pixelY);
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
-        
-        // Reject RED pixels (obstacles) - R significantly higher than G and B
-        boolean isRed = r > 100 && g < 110 && b < 110;
-        
-        // Reject BLUE pixels (obstacles) - B significantly higher than R and G
-        // Stricter thresholds: lower B threshold, higher R/G thresholds
-        boolean isBlue = b > 100 && r < 120 && g < 120;
-        
-        return !(isRed || isBlue);
-    }
-    
-    private void detectFieldBoundaries() {
-        if (fieldImage == null) return;
-        
-        int width = fieldImage.getWidth();
-        int height = fieldImage.getHeight();
-        
-        // Find white rectangle boundaries - look for white pixels (RGB > 200) excluding dark obstacles
-        int minPixelX = width, maxPixelX = 0;
-        int minPixelY = height, maxPixelY = 0;
-        
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int rgb = fieldImage.getRGB(x, y);
-                int r = (rgb >> 16) & 0xFF;
-                int g = (rgb >> 8) & 0xFF;
-                int b = rgb & 0xFF;
-                
-                // Check for white pixels that are not dark obstacles
-                if (r > 200 && g > 200 && b > 200) {
-                    if (x < minPixelX) minPixelX = x;
-                    if (x > maxPixelX) maxPixelX = x;
-                    if (y < minPixelY) minPixelY = y;
-                    if (y > maxPixelY) maxPixelY = y;
-                }
-            }
-        }
-        
-        // Convert pixel coordinates to field meters
-        fieldBoundMinX = minPixelX / pixelsPerMeterX;
-        fieldBoundMaxX = maxPixelX / pixelsPerMeterX;
-        fieldBoundMinY = minPixelY / pixelsPerMeterY;
-        fieldBoundMaxY = maxPixelY / pixelsPerMeterY;
-        
-        // Expand boundaries inward to stay INSIDE the white border lines
-        // The white lines are the boundary, we want to fill the interior
-        double marginX = 0.08;  // Margin to get inside the border
-        double marginY = 0.08;
-        fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
-        fieldBoundMaxX = Math.min(GoToBall.FIELD_LENGTH, fieldBoundMaxX - marginX);
-        fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
-        fieldBoundMaxY = Math.min(GoToBall.FIELD_WIDTH, fieldBoundMaxY - marginY);
-        
-        System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
-            " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
-            String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
     }
     
     @Override
