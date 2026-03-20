@@ -31,15 +31,18 @@ public class GoToBall extends SubsystemBase{
     public static NetworkTable table = inst.getTable("VisionData");
     public static NetworkTable poseTable = inst.getTable("AdvantageKit");
     public static StructArraySubscriber<FuelStruct> fuelSub;
-    public static StructSubscriber<Pose2d> poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+    public static StructSubscriber<Pose2d> poseSub;
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
     public void periodic(){
         currentPose = GoToBall.poseSub.get();
     }
     
     public static void main(String[] args) {
+        inst.startClient4("GoToBallViewer");          // set a client identity name
+        inst.setServer("localhost", 5810);            // simulator runs NT on port 5810
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
-
+        poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+        System.out.println(inst.isConnected());
         
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
