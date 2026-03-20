@@ -12,14 +12,14 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructArraySubscriber;
 import edu.wpi.first.networktables.StructSubscriber;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.FuelStruct;
-import frc.robot.Robot;
 
 
-public class GoToBall {
+public class GoToBall extends SubsystemBase{
     // 2026 FRC field dimensions (in meters)
     static final double FIELD_LENGTH = 16.46; // 54 feet
     static final double FIELD_WIDTH = 8.23;   // 27 feet
@@ -32,6 +32,10 @@ public class GoToBall {
     public static NetworkTable poseTable = inst.getTable("AdvantageKit");
     public static StructArraySubscriber<FuelStruct> fuelSub;
     public static StructSubscriber<Pose2d> poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+    public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
+    public void periodic(){
+        currentPose = GoToBall.poseSub.get();
+    }
     
     public static void main(String[] args) {
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
@@ -149,7 +153,7 @@ class BallPanel extends JPanel {
         // Y_field = robotY + sin(theta) * ball.x + cos(theta) * ball.y
         java.util.List<FuelStruct> fieldRelativeBalls = new java.util.ArrayList<>();
         // Robot.currentPose must be public static in Robot.java
-        Pose2d robotPose = Robot.currentPose;
+        Pose2d robotPose = GoToBall.currentPose;
         double robotX = robotPose.getX();
         double robotY = robotPose.getY();
         double robotTheta = robotPose.getRotation().getRadians();

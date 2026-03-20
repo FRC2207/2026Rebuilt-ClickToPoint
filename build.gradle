@@ -1,6 +1,11 @@
 plugins {
+    id 'application'
     id "java"
     id "edu.wpi.first.GradleRIO" version "2026.2.1"
+}
+
+application {
+    mainClass = 'frc.robot.GoToBall'
 }
 
 java {

@@ -6,37 +6,28 @@
   "configurations": [
     {
       "type": "java",
-      "name": "GoToBall",
+      "name": "GoToBall (Desktop)",
       "request": "launch",
       "mainClass": "frc.robot.GoToBall",
-      "projectName": "2026Rebuilt-ClickToPoint"
-    },
-    {
-      "type": "java",
-      "name": "Main",
-      "request": "launch",
-      "mainClass": "frc.robot.Main",
-      "projectName": "GoToBall"
-    },
-    {
-      "type": "java",
-      "name": "GoToBall",
-      "request": "launch",
-      "mainClass": "frc.robot.GoToBall",
-      "projectName": "GoToBall",
+      "projectName": "2026Rebuilt-ClickToPoint",
       "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release",
       "env": {
         "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
       },
-      "envFile": "${workspaceFolder}/.vscode/launch.env",
       "console": "internalConsole",
-      "preLaunchTask": "build-jar",
       "cwd": "${workspaceFolder}",
       "windows": {
         "env": {
           "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
         }
       }
+    },
+    {
+      "type": "java",
+      "name": "Main",
+      "request": "launch",
+      "mainClass": "frc.robot.Main",
+      "projectName": "2026Rebuilt-ClickToPoint"
     },
     {
       "type": "wpilib",
