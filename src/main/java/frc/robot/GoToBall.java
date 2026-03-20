@@ -32,7 +32,7 @@ public class GoToBall {
     public static void main(String[] args) {
         NetworkTableInstance inst2 = NetworkTableInstance.getDefault();
         inst2.startClient4("GoToBallViewer");          // set a client identity name
-        inst2.setServer("localhost", 5810);            // simulator runs NT on port 5810
+        inst2.setServer("10.22.7.2", 5810);            // simulator runs NT on port 5810
         
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
