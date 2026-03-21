@@ -177,7 +177,7 @@ class BallPanel extends JPanel {
             for (FuelStruct ball : ballsRaw) {
                 double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
                 double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
-                double rotatedX = 8.23 - fieldY;
+                double rotatedX = fieldY;
                 double rotatedY = fieldX;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
@@ -218,7 +218,9 @@ class BallPanel extends JPanel {
                     double dy = ball.y - clickYMeters;
                     double distMeters = Math.sqrt(dx * dx + dy * dy);
                     if (distMeters < 0.2) {
-                        Pose2d BallPose2d = new Pose2d(ball.x, ball.y, new Rotation2d());
+                        double originalX = ball.y;
+                        double originalY = ball.x;
+                        Pose2d BallPose2d = new Pose2d(originalX, originalY, new Rotation2d());
                         System.out.println(BallPose2d.toString());
                         GoToBall.clickPub.set(BallPose2d);
                         break;
