@@ -209,8 +209,8 @@ class BallPanel extends JPanel {
             public void mousePressed(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
+                double imagePixelsPerMeterY = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelHeight / GoToBall.FIELD_LENGTH;
                 double clickXMeters = e.getX() / imagePixelsPerMeterX;
                 double clickYMeters = e.getY() / imagePixelsPerMeterY;
                 for (FuelStruct ball : vision_data) {
@@ -238,8 +238,8 @@ class BallPanel extends JPanel {
             public void mouseMoved(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
+                double imagePixelsPerMeterY = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelHeight / GoToBall.FIELD_LENGTH;
                 double mouseXMeters = e.getX() / imagePixelsPerMeterX;
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
                 FuelStruct newHoveredBall = null;
@@ -343,8 +343,8 @@ class BallPanel extends JPanel {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
-            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
+            double panelPixelsPerMeterY = panelWidth / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterX = panelHeight / GoToBall.FIELD_LENGTH;
             for (FuelStruct ball : vision_data) {
                 int pixelX = (int)(ball.x * panelPixelsPerMeterX);
                 int pixelY = (int)(ball.y * panelPixelsPerMeterY);
