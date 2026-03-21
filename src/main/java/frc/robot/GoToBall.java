@@ -103,8 +103,8 @@ public class GoToBall {
             JFrame frame = new JFrame("FRC 2026 Field Pose Picker");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(
-                (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50,
-                (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50
+                (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50,
+                (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50
             );
             frame.setLocationRelativeTo(null);
             
@@ -364,6 +364,15 @@ class BallPanel extends JPanel {
         // Load field image - ONLY dependency
         try {
             fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png"));
+            int w = fieldImage.getWidth();
+            int h = fieldImage.getHeight();
+            BufferedImage rotated = new BufferedImage(h, w, fieldImage.getType());
+            Graphics2D g2 = rotated.createGraphics();
+            g2.translate(h, 0);
+            g2.rotate(Math.PI / 2);
+            g2.drawImage(fieldImage, 0, 0, null);
+            g2.dispose();
+            fieldImage = rotated;
             pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_LENGTH;
             pixelsPerMeterY = fieldImage.getHeight() / GoToBall.FIELD_WIDTH;
             detectFieldBoundaries();
@@ -380,8 +389,8 @@ class BallPanel extends JPanel {
                 // Convert screen coordinates to field meters
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
                 double clickXMeters = (e.getX() / imagePixelsPerMeterX) - fieldBoundMinX;
                 double clickYMeters = (e.getY() / imagePixelsPerMeterY) - fieldBoundMinY;
                 // Only allow clicks inside the white border
@@ -405,8 +414,8 @@ class BallPanel extends JPanel {
                 // Convert screen coordinates to field meters
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+                double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
                 
                 double mouseXMeters = e.getX() / imagePixelsPerMeterX;
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
@@ -447,8 +456,8 @@ class BallPanel extends JPanel {
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
             
             // Calculate panel scaling
-            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_LENGTH;
-            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
             
         } else {
             // Fallback if image not loaded
