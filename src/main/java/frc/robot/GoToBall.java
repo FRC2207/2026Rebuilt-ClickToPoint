@@ -32,7 +32,7 @@ public class GoToBall {
     public static void main(String[] args) {
         NetworkTableInstance inst2 = NetworkTableInstance.getDefault();
         inst2.startClient4("GoToBallViewer");          // set a client identity name
-        inst2.setServer("10.22.7.2", 5810);            // simulator runs NT on port 5810
+        inst2.setServer("localhost", 5810);            // simulator runs NT on port 5810
         
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
@@ -333,9 +333,9 @@ class BallPanel extends JPanel {
         double marginX = 0.08;  // Margin to get inside the border
         double marginY = 0.08;
         fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
-        fieldBoundMaxX = Math.min(GoToBall.FIELD_LENGTH, fieldBoundMaxX - marginX);
+        fieldBoundMaxX = Math.min(GoToBall.FIELD_WIDTH, fieldBoundMaxX - marginX);
         fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
-        fieldBoundMaxY = Math.min(GoToBall.FIELD_WIDTH, fieldBoundMaxY - marginY);
+        fieldBoundMaxY = Math.min(GoToBall.FIELD_LENGTH, fieldBoundMaxY - marginY);
         System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
             " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
@@ -373,8 +373,8 @@ class BallPanel extends JPanel {
             g2.drawImage(fieldImage, 0, 0, null);
             g2.dispose();
             fieldImage = rotated;
-            pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_LENGTH;
-            pixelsPerMeterY = fieldImage.getHeight() / GoToBall.FIELD_WIDTH;
+            pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_WIDTH;
+            pixelsPerMeterY = fieldImage.getHeight() / GoToBall.FIELD_LENGTH;
             detectFieldBoundaries();
         } catch (Exception e) {
             System.err.println("Failed to load field image: " + e.getMessage());
@@ -386,26 +386,23 @@ class BallPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // Convert screen coordinates to field meters
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
                 double imagePixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
-                double clickXMeters = (e.getX() / imagePixelsPerMeterX) - fieldBoundMinX;
-                double clickYMeters = (e.getY() / imagePixelsPerMeterY) - fieldBoundMinY;
-                // Only allow clicks inside the white border
-                double maxXMeters = fieldBoundMaxX - fieldBoundMinX;
-                double maxYMeters = fieldBoundMaxY - fieldBoundMinY;
-                if (clickXMeters >= 0 && clickXMeters <= maxXMeters &&
-                    clickYMeters >= 0 && clickYMeters <= maxYMeters) {
-                        Pose2d clickPose2d = new Pose2d(clickXMeters, clickYMeters, new Rotation2d());
-                        System.out.println(clickPose2d.toString());
-                        publisher.set(clickPose2d);
+                double clickXDisplay = e.getX() / imagePixelsPerMeterX;
+                double clickYDisplay = e.getY() / imagePixelsPerMeterY;
+                if (clickXDisplay >= fieldBoundMinX && clickXDisplay <= fieldBoundMaxX &&
+                    clickYDisplay >= fieldBoundMinY && clickYDisplay <= fieldBoundMaxY) {
+                    // Un-rotate CW back to original field coords before publishing
+                    double originalX = clickYDisplay;
+                    double originalY = clickXDisplay;
+                    Pose2d clickPose2d = new Pose2d(originalX, originalY, new Rotation2d());
+                    System.out.println(clickPose2d.toString());
+                    publisher.set(clickPose2d);
                 } else {
                     System.out.println("Click is outside the field border, ignored.");
-                }
-            }
-        });
+}}});
         
         // Add mouse motion listener for hover effect
         addMouseMotionListener(new MouseMotionAdapter() {
