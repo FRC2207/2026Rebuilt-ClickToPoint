@@ -6,8 +6,6 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.nio.file.Files;
-import java.util.List;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructArraySubscriber;
@@ -16,10 +14,6 @@ import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import frc.robot.FuelStruct;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 
 
 public class GoToBall extends SubsystemBase{
@@ -43,7 +37,7 @@ public class GoToBall extends SubsystemBase{
     
     public static void main(String[] args) {
         inst.startClient4("GoToBallViewer");          // set a client identity name
-        inst.setServer("localhost", 5810);            // simulator runs NT on port 5810
+        inst.setServer("localhost", 5810);     // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should b your team number(10.22.7.2)
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
         clickPub = table.getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
@@ -110,7 +104,7 @@ public class GoToBall extends SubsystemBase{
                 }
             }
         } catch (Throwable t) {
-            // Non-fatal; we'll proceed and the usual RuntimeLoader will attempt to find the library.
+            // Non-fatal. proceed and the usual RuntimeLoader will attempt to find the library.
             System.err.println("Preload check for ntcorejni failed: " + t.getMessage());
         }
 
@@ -140,19 +134,18 @@ class BallPanel extends JPanel {
     double fieldBoundMinY = 0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     FuelStruct hoveredBall = null;
-    // NetworkTables and array subscription removed. Populate vision_data manually.
 
     public BallPanel() {
         vision_data = new java.util.ArrayList<>();
         try {
-            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png"));
-            int w = fieldImage.getWidth();
-            int h = fieldImage.getHeight();
+            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png")); // Name of field image with path
+            int w = fieldImage.getWidth(); // Width of the image
+            int h = fieldImage.getHeight(); // Height of the image
             BufferedImage rotated = new BufferedImage(h, w, fieldImage.getType());
-            Graphics2D g2 = rotated.createGraphics();
-            g2.translate(h, 0);
-            g2.rotate(Math.PI / 2);
-            g2.drawImage(fieldImage, 0, 0, null);
+            Graphics2D g2 = rotated.createGraphics(); // Basically gives us permissions to "draw" on the image-and rotate it
+            g2.translate(h, 0); // Zero's out the offset before rotating to prevent the field image being off screen
+            g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, we do pi/2 to get 90 degrees instead of putting a rounded decimal
+            g2.drawImage(fieldImage, 0, 0, null); // Draws the image onto the JFrame
             g2.dispose();
             fieldImage = rotated;
             pixelsPerMeterX = fieldImage.getWidth() / GoToBall.FIELD_LENGTH;
@@ -163,7 +156,7 @@ class BallPanel extends JPanel {
             fieldImage = null;
             return;
         }
-        // Timer to update vision_data from NetworkTables every 100ms
+        // Timer to update vision_data from NetworkTables every 100ms - in this loop it does the math to convert aidan's bot relative coords to field relative
         javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
             FuelStruct[] ballsRaw = GoToBall.fuelSub.get();
             System.out.println(ballsRaw.length);
@@ -185,7 +178,6 @@ class BallPanel extends JPanel {
             repaint();
         });
         ntUpdateTimer.start();
-        // vision_data should be populated manually.
         // Convert bot-relative coordinates to field-relative using Robot.currentPose
         // Math:
         // X_field = robotX + cos(theta) * ball.x - sin(theta) * ball.y
@@ -206,7 +198,7 @@ class BallPanel extends JPanel {
         vision_data = fieldRelativeBalls;
         addMouseListener(new MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
+            public void mousePressed(MouseEvent e) { // Adds method for when the mouse is pressed
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
@@ -220,9 +212,9 @@ class BallPanel extends JPanel {
                     if (distMeters < 0.2) {
                         double originalX = ball.y;
                         double originalY = ball.x;
-                        Pose2d BallPose2d = new Pose2d(originalX, originalY, new Rotation2d());
-                        System.out.println(BallPose2d.toString());
-                        GoToBall.clickPub.set(BallPose2d);
+                        Pose2d BallPose2d = new Pose2d(originalX, originalY, new Rotation2d()); // Makes the new Pose2d
+                        System.out.println(BallPose2d.toString()); // Prints the target pose
+                        GoToBall.clickPub.set(BallPose2d); // Publishes the Pose2d to NT
                         break;
                     }
                 }
@@ -262,34 +254,7 @@ class BallPanel extends JPanel {
         });
     }
     
-    private boolean isValidPosition(double xMeters, double yMeters) {
-        if (fieldImage == null) return true;  // Accept if no image
-        
-        // Convert field meters to image pixels
-        int pixelX = (int)(xMeters * pixelsPerMeterX);
-        int pixelY = (int)(yMeters * pixelsPerMeterY);
-        
-        // Bounds check
-        if (pixelX < 0 || pixelX >= fieldImage.getWidth() || pixelY < 0 || pixelY >= fieldImage.getHeight()) {
-            return false;
-        }
-        
-        int rgb = fieldImage.getRGB(pixelX, pixelY);
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
-        
-        // Reject RED pixels (obstacles) - R significantly higher than G and B
-        boolean isRed = r > 100 && g < 110 && b < 110;
-        
-        // Reject BLUE pixels (obstacles) - B significantly higher than R and G
-        // Stricter thresholds: lower B threshold, higher R/G thresholds
-        boolean isBlue = b > 100 && r < 120 && g < 120;
-        
-        return !(isRed || isBlue);
-    }
-    
-    private void detectFieldBoundaries() {
+    private void detectFieldBoundaries() { // Detects field boundaries, kinda broken most likely will change soon
         if (fieldImage == null) return;
         
         int width = fieldImage.getWidth();
@@ -337,7 +302,7 @@ class BallPanel extends JPanel {
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
+    protected void paintComponent(Graphics g) { // This draws all of the graphical stuff
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -366,20 +331,5 @@ class BallPanel extends JPanel {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
-    }
-
-    // Initialize NetworkTables subscribers and start a periodic poller
-    // NOTE: publishers are now expected to be named "FuelPointsX" and "FuelPointsY".
-    // The incoming arrays are provided in inches (robot-relative); we convert inches -> meters
-    // (1 in = 0.0254 m) before transforming into field coordinates.
-    private void initNetworkTablesSubscriber() {
-        // Removed: NetworkTables array subscription. No-op.
-    }
-
-    // Read arrays from NetworkTables, convert robot-relative coords to field coords, update balls.
-    // Returns true if we replaced the ball list with any valid NT detections.
-    private boolean updateBallsFromNetwork() {
-        // Removed: NetworkTables array unpacking. No-op.
-        return false;
     }
 }
