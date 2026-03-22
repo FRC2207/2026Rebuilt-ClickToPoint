@@ -8,13 +8,11 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.io.File;
 import java.nio.file.Files;
-import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 
 
 public class GoToBall {
@@ -22,17 +20,14 @@ public class GoToBall {
     static final double FIELD_LENGTH = 16.46; // 54 feet
     static final double FIELD_WIDTH = 8.23;   // 27 feet
     static final int PIXELS_PER_METER = 50;   // Scale factor for display
-    static final double robotX = 1.0;
-    static final double robotY = 4.3;
-    static final double robotRot = 36.0;
 
 
 
     
     public static void main(String[] args) {
-        NetworkTableInstance inst2 = NetworkTableInstance.getDefault();
+        NetworkTableInstance inst2 = NetworkTableInstance.getDefault(); // Makes the NT instance
         inst2.startClient4("GoToBallViewer");          // set a client identity name
-        inst2.setServer("localhost", 5810);            // simulator runs NT on port 5810
+        inst2.setServer("localhost", 5810);     // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
         
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
@@ -95,13 +90,13 @@ public class GoToBall {
                 }
             }
         } catch (Throwable t) {
-            // Non-fatal; we'll proceed and the usual RuntimeLoader will attempt to find the library.
+            // Non-fatal. proceed and the usual RuntimeLoader will attempt to find the library.
             System.err.println("Preload check for ntcorejni failed: " + t.getMessage());
         }
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("FRC 2026 Field Pose Picker");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // If window is closed, program is stopped.
             frame.setSize(
                 (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50,
                 (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50
@@ -251,11 +246,6 @@ class NavGrid {
         if (gridX < 0 || gridX >= grid[0].length || gridY < 0 || gridY >= grid.length) {
             return false;
         }
-        
-        // Invert the logic - PathPlanner uses true for walkable, but we need to check if it's NOT an obstacle
-        // Actually, in PathPlanner a 'true' node means walkable. So we should return the value as-is.
-        // But the balls are still landing on obstacles, so maybe the coordinate system is wrong?
-        // Let me try NOT inverting the X coordinate mapping
         boolean result = grid[gridY][gridX];
         return result;
     }
@@ -280,7 +270,7 @@ class Obstacle {
 }
 
 class BallPanel extends JPanel {
-    private boolean isValidPosition(double xMeters, double yMeters) {
+    private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
         if (fieldImage == null) return true;  // Accept if no image
         // Convert field meters to image pixels
         int pixelX = (int)(xMeters * pixelsPerMeterX);
@@ -350,26 +340,18 @@ class BallPanel extends JPanel {
     double fieldBoundMinY = 0.0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     Ball hoveredBall = null;
-    // NetworkTables subscribers for two aligned arrays: Xs and Ys (robot-relative, meters)
-    private DoubleArraySubscriber ballsXSub = null;
-    private DoubleArraySubscriber ballsYSub = null;
-    private javax.swing.Timer ntPoller = null;
-    // If NT is available but hasn't provided data yet, we wait a short time before
-    // falling back to random placement. This timer triggers the fallback generation.
-    private javax.swing.Timer ntFallbackTimer = null;
-    
     public BallPanel() {
         balls = new ArrayList<>();      
         
         // Load field image - ONLY dependency
         try {
-            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png"));
+            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png")); // Path of the field image
             int w = fieldImage.getWidth();
             int h = fieldImage.getHeight();
             BufferedImage rotated = new BufferedImage(h, w, fieldImage.getType());
             Graphics2D g2 = rotated.createGraphics();
-            g2.translate(h, 0);
-            g2.rotate(Math.PI / 2);
+            g2.translate(h, 0); // Recenters field image to prevent image from dissapearing from view
+            g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, pi/2 is 90 degrees instead of a rounded innacurate decimal
             g2.drawImage(fieldImage, 0, 0, null);
             g2.dispose();
             fieldImage = rotated;
@@ -385,7 +367,7 @@ class BallPanel extends JPanel {
         // Add mouse listener for clicks
         addMouseListener(new MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
+            public void mousePressed(MouseEvent e) { // Adds method for mouse being pressed
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
@@ -397,9 +379,9 @@ class BallPanel extends JPanel {
                     // Un-rotate CW back to original field coords before publishing
                     double originalX = clickYDisplay;
                     double originalY = clickXDisplay;
-                    Pose2d clickPose2d = new Pose2d(originalX, originalY, new Rotation2d());
-                    System.out.println(clickPose2d.toString());
-                    publisher.set(clickPose2d);
+                    Pose2d clickPose2d = new Pose2d(originalX, originalY, new Rotation2d()); // Makes the new target Pose2d
+                    System.out.println(clickPose2d.toString()); // Prints the target Pose2d
+                    publisher.set(clickPose2d); // Publishes the Pose2d
                 } else {
                     System.out.println("Click is outside the field border, ignored.");
 }}});
@@ -451,11 +433,6 @@ class BallPanel extends JPanel {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            
-            // Calculate panel scaling
-            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
-            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
-            
         } else {
             // Fallback if image not loaded
             g2d.setColor(Color.LIGHT_GRAY);
