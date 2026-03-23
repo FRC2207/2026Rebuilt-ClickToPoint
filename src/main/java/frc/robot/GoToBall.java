@@ -13,6 +13,9 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.StructArraySubscriber;
+import edu.wpi.first.networktables.StructSubscriber;
+import frc.robot.FuelStruct;
 
 
 public class GoToBall {
@@ -21,14 +24,19 @@ public class GoToBall {
     static final double FIELD_WIDTH = 8.23;   // 27 feet
     static final int PIXELS_PER_METER = 50;   // Scale factor for display
 
-
+    public static NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    public static NetworkTable table = inst.getTable("VisionData");
+    public static NetworkTable poseTable = inst.getTable("AdvantageKit");
+    public static StructArraySubscriber<FuelStruct> fuelSub;
+    public static StructSubscriber<Pose2d> poseSub;
+    public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
 
     
     public static void main(String[] args) {
-        NetworkTableInstance inst2 = NetworkTableInstance.getDefault(); // Makes the NT instance
-        inst2.startClient4("GoToBallViewer");          // set a client identity name
-        inst2.setServer("localhost", 5810);     // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
-        
+        inst.startClient4("GoToBallViewer");          // set a client identity name
+        inst.setServer("localhost", 5810);     // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
+        fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
+        poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
         // Attempt to pre-load the ntcorejni native library from the project's build folder so
         // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
         // users to manually set LD_LIBRARY_PATH or -Djava.library.path.
@@ -270,6 +278,7 @@ class Obstacle {
 }
 
 class BallPanel extends JPanel {
+    java.util.List<FuelStruct> vision_data = new java.util.ArrayList<>();
     private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
         if (fieldImage == null) return true;  // Accept if no image
         // Convert field meters to image pixels
@@ -364,6 +373,27 @@ class BallPanel extends JPanel {
             return;
         }
         
+        javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
+            FuelStruct[] ballsRaw = GoToBall.fuelSub.get();
+            Pose2d robotPose = GoToBall.currentPose;
+            double robotX = robotPose.getX();
+            double robotY = robotPose.getY();
+            double robotTheta = robotPose.getRotation().getRadians();
+            double cosTheta = Math.cos(robotTheta);
+            double sinTheta = Math.sin(robotTheta);
+            java.util.List<FuelStruct> fieldRelativeBalls = new java.util.ArrayList<>();
+            for (FuelStruct ball : ballsRaw) {
+                double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
+                double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
+                double rotatedX = fieldY;
+                double rotatedY = fieldX;
+                fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
+            }
+            vision_data = fieldRelativeBalls;
+            repaint();
+        });
+        ntUpdateTimer.start();
+        
         // Add mouse listener for clicks
         addMouseListener(new MouseAdapter() {
             @Override
@@ -433,6 +463,20 @@ class BallPanel extends JPanel {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
+            double panelPixelsPerMeterX = panelWidth / GoToBall.FIELD_WIDTH;
+            double panelPixelsPerMeterY = panelHeight / GoToBall.FIELD_LENGTH;
+            for (FuelStruct ball : vision_data) {
+                int pixelX = (int)(ball.x * panelPixelsPerMeterX);
+                int pixelY = (int)(ball.y * panelPixelsPerMeterY);
+                int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX));
+                g2d.setColor(Color.YELLOW);
+                g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius,
+                            pixelRadius * 2, pixelRadius * 2);
+                g2d.setColor(Color.BLACK);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawOval(pixelX - pixelRadius, pixelY - pixelRadius,
+                            pixelRadius * 2, pixelRadius * 2);
+            }
         } else {
             // Fallback if image not loaded
             g2d.setColor(Color.LIGHT_GRAY);
