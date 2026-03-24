@@ -41,7 +41,7 @@ If you want IDE integration instead of the scripts, configure your run configura
   - `PATH=C:\path\to\project\build\jni\release;%PATH%` (Windows)
 
 Notes:
-- I also added a small preload attempt in `GoToBall.main()` which tries to load the
+- I also added a small preload attempt in `GoToBallLine.main()` which tries to load the
   platform-native library from `build/jni/release` at startup to help in some cases,
   but the reliable cross-platform solution is to run via the scripts or set the
   environment / JVM arg in your run configuration.

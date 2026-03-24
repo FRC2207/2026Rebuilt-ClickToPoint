@@ -16,4 +16,4 @@ fi
 ./gradlew jar --no-daemon --console=plain
 
 # Run the fat jar
-exec java -cp "$ROOT_DIR/build/libs/GoToBall.jar" frc.robot.GoToBall "$@"
+exec java -cp "$ROOT_DIR/build/libs/GoToBallLine.jar" frc.robot.GoToBallLine "$@"

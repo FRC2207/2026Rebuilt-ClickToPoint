@@ -33,70 +33,6 @@ public class GoToBallLine {
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
     
     public static void main(String[] args) {
-        // Attempt to pre-load the ntcorejni native library from the project's build folder so
-        // direct 'java frc.robot.GoToBall' runs (or IDE runs) can find the JNI without requiring
-        // users to manually set LD_LIBRARY_PATH or -Djava.library.path.
-        try {
-            String cwd = System.getProperty("user.dir");
-            java.io.File jniDir = new java.io.File(cwd, "build/jni/release");
-            if (jniDir.exists() && jniDir.isDirectory()) {
-                // Ensure java.library.path contains the jniDir so System.loadLibrary can find it
-                try {
-                    String libPath = System.getProperty("java.library.path");
-                    String path = jniDir.getAbsolutePath();
-                    if (!libPath.contains(path)) {
-                        System.setProperty("java.library.path", libPath + java.io.File.pathSeparator + path);
-
-                        // Try to update internal ClassLoader paths (usr_paths) used by System.loadLibrary
-                        try {
-                            java.lang.reflect.Field usrPathsField = ClassLoader.class.getDeclaredField("usr_paths");
-                            usrPathsField.setAccessible(true);
-                            String[] paths = (String[]) usrPathsField.get(null);
-                            boolean found = false;
-                            for (String p : paths) if (p.equals(path)) { found = true; break; }
-                            if (!found) {
-                                String[] newPaths = java.util.Arrays.copyOf(paths, paths.length + 1);
-                                newPaths[paths.length] = path;
-                                usrPathsField.set(null, newPaths);
-                            }
-                        } catch (NoSuchFieldException nsf) {
-                            // Fallback: clear sys_paths so the VM will reinitialize from java.library.path
-                            try {
-                                java.lang.reflect.Field sysPaths = ClassLoader.class.getDeclaredField("sys_paths");
-                                sysPaths.setAccessible(true);
-                                sysPaths.set(null, null);
-                            } catch (NoSuchFieldException nsf2) {
-                                // ignore
-                            }
-                        }
-                    }
-                } catch (Throwable t) {
-                    System.err.println("Failed to update java.library.path: " + t.getMessage());
-                }
-
-                // Possible names (Linux: libntcorejni.so, Windows: ntcorejni.dll)
-                java.io.File so = new java.io.File(jniDir, "libntcorejni.so");
-                java.io.File dll = new java.io.File(jniDir, "ntcorejni.dll");
-                java.io.File dylib = new java.io.File(jniDir, "libntcorejni.dylib");
-                java.io.File toLoad = null;
-                if (so.exists()) toLoad = so;
-                else if (dll.exists()) toLoad = dll;
-                else if (dylib.exists()) toLoad = dylib;
-
-                if (toLoad != null) {
-                    try {
-                        System.out.println("Attempting to load native library: " + toLoad.getAbsolutePath());
-                        System.load(toLoad.getAbsolutePath());
-                        System.out.println("Loaded native library: " + toLoad.getName());
-                    } catch (UnsatisfiedLinkError ule) {
-                        System.err.println("Failed to System.load native library: " + ule.getMessage());
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            // Non-fatal. proceed and the usual RuntimeLoader will attempt to find the library.
-            System.err.println("Preload check for ntcorejni failed: " + t.getMessage());
-        }
         inst = NetworkTableInstance.getDefault();
         table = inst.getTable("VisionData");
         poseTable = inst.getTable("AdvantageKit");
@@ -281,10 +217,8 @@ class Obstacle {
 
 class BallPanel extends JPanel {
     java.util.List<FuelStruct> vision_data = new java.util.ArrayList<>();
-    StructArrayPublisher<Pose2d> waypointsPub = GoToBallLine.inst.getTable("VisionData")
-    .getStructArrayTopic("DrawnWaypoints", Pose2d.struct).publish();
-    double dragStartX = -1, dragStartY = -1;
-    double dragEndX = -1, dragEndY = -1;
+    StructArrayPublisher<Pose2d> waypointsPub;
+    java.util.List<double[]> dragPath = new java.util.ArrayList<>();
     boolean isDragging = false;
     private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
         if (fieldImage == null) return true;  // Accept if no image
@@ -346,8 +280,7 @@ class BallPanel extends JPanel {
             " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
     }
-    StructPublisher<Pose2d> publisher = GoToBallLine.inst.getTable("VisionData")
-    .getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
+    StructPublisher<Pose2d> publisher;
 
     ArrayList<Ball> balls;
     BufferedImage fieldImage;
@@ -356,7 +289,11 @@ class BallPanel extends JPanel {
     double pixelsPerMeterX, pixelsPerMeterY;
     FuelStruct hoveredBall = null;
     public BallPanel() {
-        balls = new ArrayList<>();      
+        waypointsPub = GoToBallLine.inst.getTable("VisionData")
+        .getStructArrayTopic("DrawnWaypoints", Pose2d.struct).publish();
+        publisher = GoToBallLine.inst.getTable("VisionData")
+        .getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
+        balls = new ArrayList<>();
         
         // Load field image - ONLY dependency
         try {
@@ -400,57 +337,49 @@ class BallPanel extends JPanel {
         });
         ntUpdateTimer.start();
         
-        // Add mouse listener for clicks
         addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                int panelWidth = getWidth();
-                int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
-                dragStartX = e.getX() / imagePixelsPerMeterX;
-                dragStartY = e.getY() / imagePixelsPerMeterY;
-                dragEndX = dragStartX;
-                dragEndY = dragStartY;
-                isDragging = true;
-                repaint();
-            }
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (!isDragging) return;
-                isDragging = false;
-                int panelWidth = getWidth();
-                int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
-                dragEndX = e.getX() / imagePixelsPerMeterX;
-                dragEndY = e.getY() / imagePixelsPerMeterY;
+        @Override
+        public void mousePressed(MouseEvent e) {
+            int panelWidth = getWidth();
+            int panelHeight = getHeight();
+            double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
+            double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
+            dragPath.clear();
+            dragPath.add(new double[]{e.getX() / imagePixelsPerMeterX, e.getY() / imagePixelsPerMeterY});
+            isDragging = true;
+            repaint();
+        }
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (!isDragging) return;
+            isDragging = false;
+            if (dragPath.size() < 2) return;
 
-                // Generate waypoints spaced 0.5m apart along the line
-                double spacing = 0.5;
-                double dx = dragEndX - dragStartX;
-                double dy = dragEndY - dragStartY;
-                double lineLength = Math.sqrt(dx * dx + dy * dy);
-                double angle = Math.atan2(dy, dx); // direction of line in display space
-                // Un-rotate angle back to field coords (CW 90 degrees means subtract pi/2)
-                double fieldAngle = angle - Math.PI / 2;
-
-                int numPoints = Math.max(1, (int)(lineLength / spacing) + 1);
-                Pose2d[] waypoints = new Pose2d[numPoints];
-                for (int i = 0; i < numPoints; i++) {
-                    double t = (numPoints == 1) ? 0 : (double) i / (numPoints - 1);
-                    double displayX = dragStartX + t * dx;
-                    double displayY = dragStartY + t * dy;
-                    // Un-rotate CW back to original field coords
-                    double fieldX = displayY;
-                    double fieldY = displayX;
-                    waypoints[i] = new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle));
+            // Resample path to evenly spaced waypoints 0.5m apart
+            double spacing = 0.5;
+            java.util.List<Pose2d> waypoints = new java.util.ArrayList<>();
+            double accumulated = 0;
+            for (int i = 1; i < dragPath.size(); i++) {
+                double[] prev = dragPath.get(i - 1);
+                double[] curr = dragPath.get(i);
+                double dx = curr[0] - prev[0];
+                double dy = curr[1] - prev[1];
+                double segLen = Math.sqrt(dx * dx + dy * dy);
+                accumulated += segLen;
+                if (accumulated >= spacing || i == 1) {
+                    accumulated = 0;
+                    double fieldAngle = Math.atan2(dy, dx) - Math.PI / 2;
+                    double fieldX = curr[1];
+                    double fieldY = curr[0];
+                    waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
                 }
-                waypointsPub.set(waypoints);
-                System.out.println("Published " + numPoints + " waypoints");
-                repaint();
             }
-        });
+            waypointsPub.set(waypoints.toArray(new Pose2d[0]));
+            publisher.set(waypoints.get(0));
+            System.out.println("Published " + waypoints.size() + " waypoints");
+            repaint();
+        }
+    });
         
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
@@ -459,8 +388,16 @@ class BallPanel extends JPanel {
                 int panelHeight = getHeight();
                 double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
                 double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
-                dragEndX = e.getX() / imagePixelsPerMeterX;
-                dragEndY = e.getY() / imagePixelsPerMeterY;
+                double x = e.getX() / imagePixelsPerMeterX;
+                double y = e.getY() / imagePixelsPerMeterY;
+                // Only add point if moved more than 0.05m to avoid too many points
+                if (!dragPath.isEmpty()) {
+                    double[] last = dragPath.get(dragPath.size() - 1);
+                    double dx = x - last[0];
+                    double dy = y - last[1];
+                    if (Math.sqrt(dx * dx + dy * dy) < 0.05) return;
+                }
+                dragPath.add(new double[]{x, y});
                 repaint();
             }
             @Override
@@ -512,29 +449,21 @@ class BallPanel extends JPanel {
                             pixelRadius * 2, pixelRadius * 2);
             }
             // Draw the drag line
-            if (dragStartX >= 0 && dragEndX >= 0) {
-                double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
-                int x1 = (int)(dragStartX * panelPixelsPerMeterXLine);
-                int y1 = (int)(dragStartY * panelPixelsPerMeterYLine);
-                int x2 = (int)(dragEndX * panelPixelsPerMeterXLine);
-                int y2 = (int)(dragEndY * panelPixelsPerMeterYLine);
-                g2d.setColor(Color.CYAN);
-                g2d.setStroke(new BasicStroke(3));
+           if (!dragPath.isEmpty()) {
+            double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
+            double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
+            g2d.setColor(Color.CYAN);
+            g2d.setStroke(new BasicStroke(3));
+            for (int i = 1; i < dragPath.size(); i++) {
+                double[] prev = dragPath.get(i - 1);
+                double[] curr = dragPath.get(i);
+                int x1 = (int)(prev[0] * panelPixelsPerMeterXLine);
+                int y1 = (int)(prev[1] * panelPixelsPerMeterYLine);
+                int x2 = (int)(curr[0] * panelPixelsPerMeterXLine);
+                int y2 = (int)(curr[1] * panelPixelsPerMeterYLine);
                 g2d.drawLine(x1, y1, x2, y2);
-                // Draw dots at each waypoint position along the line
-                double dx = dragEndX - dragStartX;
-                double dy = dragEndY - dragStartY;
-                double lineLength = Math.sqrt(dx * dx + dy * dy);
-                int numPoints = Math.max(1, (int)(lineLength / 0.5) + 1);
-                for (int i = 0; i < numPoints; i++) {
-                    double t = (numPoints == 1) ? 0 : (double) i / (numPoints - 1);
-                    int wx = (int)((dragStartX + t * dx) * panelPixelsPerMeterXLine);
-                    int wy = (int)((dragStartY + t * dy) * panelPixelsPerMeterYLine);
-                    g2d.setColor(Color.CYAN);
-                    g2d.fillOval(wx - 4, wy - 4, 8, 8);
-                }
             }
+        }
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());

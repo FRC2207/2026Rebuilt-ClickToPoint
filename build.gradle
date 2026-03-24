@@ -4,10 +4,10 @@ plugins {
     id "edu.wpi.first.GradleRIO" version "2026.2.1"
 }
 
-application {
-    mainClass = 'frc.robot.GoToBall'
+task runGoToBallLine(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'frc.robot.GoToBallLine'
 }
-
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17

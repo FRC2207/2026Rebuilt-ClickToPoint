@@ -6,27 +6,16 @@
   "configurations": [
     {
       "type": "java",
-      "name": "GoToBallLine",
+      "name": "GoToBallLine (Desktop)",
       "request": "launch",
       "mainClass": "frc.robot.GoToBallLine",
-      "projectName": "2026Rebuilt-ClickToPoint"
-    },
-    {
-      "type": "java",
-      "name": "GoToBall (Desktop)",
-      "request": "launch",
-      "mainClass": "frc.robot.GoToBall",
       "projectName": "2026Rebuilt-ClickToPoint",
-      "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release",
-      "env": {
-        "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
-      },
-      "console": "internalConsole",
+      "vmArgs": "-Djava.library.path=${workspaceFolder}\\build\\jni\\release",
       "cwd": "${workspaceFolder}",
       "windows": {
-        "env": {
-          "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
-        }
+          "env": {
+              "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
+          }
       }
     },
     {

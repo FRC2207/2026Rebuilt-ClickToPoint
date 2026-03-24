@@ -12,4 +12,4 @@ IF EXIST "%JNI_DIR%\ntcorejni.dll" (
 )
 
 CALL gradlew.bat jar
-java -cp "%ROOT_DIR%build\libs\GoToBall.jar" frc.robot.GoToBall %*
+java -cp "%ROOT_DIR%build\libs\GoToBallLine.jar" frc.robot.GoToBallLine %*
