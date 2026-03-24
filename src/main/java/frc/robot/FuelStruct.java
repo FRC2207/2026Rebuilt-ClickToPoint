@@ -1,6 +1,6 @@
 package frc.robot;
-import java.nio.ByteBuffer;
 
+import java.nio.ByteBuffer;
 import edu.wpi.first.util.struct.Struct;
 import edu.wpi.first.util.struct.StructSerializable;
 
