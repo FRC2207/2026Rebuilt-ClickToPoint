@@ -374,6 +374,14 @@ class BallPanel extends JPanel {
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
                 }
             }
+            if (waypoints.size()>25){
+                java.util.List<Pose2d> downsampled = new java.util.ArrayList<>();
+                for (int i = 0; i < 25; i++) {
+                    int index = (int)Math.round(i * (waypoints.size() - 1) / 24.0);
+                    downsampled.add(waypoints.get(index));
+                }
+                waypoints = downsampled;
+            }
             waypointsPub.set(waypoints.toArray(new Pose2d[0]));
             publisher.set(waypoints.get(0));
             System.out.println("Published " + waypoints.size() + " waypoints");
