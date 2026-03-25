@@ -60,12 +60,15 @@ public class GoToBallLine{
             
             // Set the icon
             frame.setIconImage(icon);
-            frame.setVisible(true);
+            
             if(screenDevices.length > 1){
                 Rectangle bounds = screenDevices[1].getDefaultConfiguration().getBounds();
                 frame.setLocation(bounds.x, bounds.y);
                 frame.setExtendedState(Frame.MAXIMIZED_BOTH);
+                frame.setUndecorated(true);
             }
+            frame.setVisible(true);
+            
         });
     }
 
