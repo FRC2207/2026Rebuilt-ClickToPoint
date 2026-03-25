@@ -4,7 +4,6 @@ import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
@@ -18,7 +17,6 @@ import edu.wpi.first.networktables.StructArraySubscriber;
 import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import frc.robot.FuelStruct;
-
 
 
 public class GoToBallLine{
@@ -45,14 +43,16 @@ public class GoToBallLine{
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
         isRedAllianceSub = inst.getTable("FMSInfo").getBooleanTopic("IsRedAlliance").subscribe(false);
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("FRC 2026 Field Pose Picker");
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice[] screenDevices = ge.getScreenDevices();
+
+            JFrame frame = new JFrame("FRC Live Field Click To Point");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // If window is closed, program is stopped.
             frame.setSize(
                 (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50,
                 (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50
             );
             frame.setLocationRelativeTo(null);
-            
             BallPanel panel = new BallPanel();
             frame.add(panel);
              // Load the image (ensure path is correct)
@@ -61,6 +61,11 @@ public class GoToBallLine{
             // Set the icon
             frame.setIconImage(icon);
             frame.setVisible(true);
+            if(screenDevices.length > 1){
+                Rectangle bounds = screenDevices[1].getDefaultConfiguration().getBounds();
+                frame.setLocation(bounds.x, bounds.y);
+                frame.setExtendedState(Frame.MAXIMIZED_BOTH);
+            }
         });
     }
 
