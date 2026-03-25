@@ -19,7 +19,8 @@ import edu.wpi.first.networktables.StructArrayPublisher;
 import frc.robot.FuelStruct;
 
 
-public class GoToBallLine {
+
+public class GoToBallLine{
     // 2026 FRC field dimensions (in meters)
     static final double FIELD_LENGTH = 16.46; // 54 feet
     static final double FIELD_WIDTH = 8.23;   // 27 feet
@@ -53,7 +54,11 @@ public class GoToBallLine {
             
             BallPanel panel = new BallPanel();
             frame.add(panel);
+             // Load the image (ensure path is correct)
+            Image icon = Toolkit.getDefaultToolkit().getImage("src/main/java/frc/robot/ClickToPoint Logo.png");
             
+            // Set the icon
+            frame.setIconImage(icon);
             frame.setVisible(true);
         });
     }
@@ -493,7 +498,7 @@ class BallPanel extends JPanel {
            if (!dragPath.isEmpty()) {
             double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
             double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
-            g2d.setColor(Color.CYAN);
+            g2d.setColor(Color.getHSBColor(29, 1, 1));
             g2d.setStroke(new BasicStroke(3));
             for (int i = 1; i < dragPath.size(); i++) {
                 double[] prev = dragPath.get(i - 1);
