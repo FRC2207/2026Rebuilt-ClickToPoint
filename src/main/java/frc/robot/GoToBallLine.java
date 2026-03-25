@@ -31,6 +31,7 @@ public class GoToBallLine {
     public static StructArraySubscriber<FuelStruct> fuelSub;
     public static StructSubscriber<Pose2d> poseSub;
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
+    public static edu.wpi.first.networktables.BooleanSubscriber isRedAllianceSub;
     
     public static void main(String[] args) {
         inst = NetworkTableInstance.getDefault();
@@ -40,6 +41,7 @@ public class GoToBallLine {
         inst.setServer("localhost", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+        isRedAllianceSub = inst.getTable("FMSInfo").getBooleanTopic("IsRedAlliance").subscribe(false);
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("FRC 2026 Field Pose Picker");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // If window is closed, program is stopped.
@@ -220,6 +222,10 @@ class BallPanel extends JPanel {
     StructArrayPublisher<Pose2d> waypointsPub;
     java.util.List<double[]> dragPath = new java.util.ArrayList<>();
     boolean isDragging = false;
+    boolean flipped = true;
+    boolean lastFlipped = true;
+    BufferedImage originalFieldImage;
+
     private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
         if (fieldImage == null) return true;  // Accept if no image
         // Convert field meters to image pixels
@@ -241,6 +247,24 @@ class BallPanel extends JPanel {
         return !(isRed || isBlue);
     }
 
+    private void applyRotation() {
+        if (flipped) {
+            int w = originalFieldImage.getWidth();
+            int h = originalFieldImage.getHeight();
+            BufferedImage rotated = new BufferedImage(h, w, originalFieldImage.getType());
+            Graphics2D g2 = rotated.createGraphics();
+            g2.translate(h, 0);
+            g2.rotate(Math.PI / 2);
+            g2.drawImage(originalFieldImage, 0, 0, null);
+            g2.dispose();
+            fieldImage = rotated;
+        } else {
+            fieldImage = originalFieldImage;
+        }
+        pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_LENGTH);
+        pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.FIELD_LENGTH : GoToBallLine.FIELD_WIDTH);
+        detectFieldBoundaries();
+    }
     private void detectFieldBoundaries() {
         if (fieldImage == null) return;
         int width = fieldImage.getWidth();
@@ -273,9 +297,9 @@ class BallPanel extends JPanel {
         double marginX = 0.08;  // Margin to get inside the border
         double marginY = 0.08;
         fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
-        fieldBoundMaxX = Math.min(GoToBallLine.FIELD_WIDTH, fieldBoundMaxX - marginX);
+        fieldBoundMaxX = Math.min(flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_LENGTH, fieldBoundMaxX - marginX);
         fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
-        fieldBoundMaxY = Math.min(GoToBallLine.FIELD_LENGTH, fieldBoundMaxY - marginY);
+        fieldBoundMaxY = Math.min(flipped ? GoToBallLine.FIELD_LENGTH : GoToBallLine.FIELD_WIDTH, fieldBoundMaxY - marginY);
         System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
             " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
@@ -298,17 +322,20 @@ class BallPanel extends JPanel {
         // Load field image - ONLY dependency
         try {
             fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png")); // Path of the field image
+            originalFieldImage = fieldImage;
             int w = fieldImage.getWidth();
             int h = fieldImage.getHeight();
             BufferedImage rotated = new BufferedImage(h, w, fieldImage.getType());
             Graphics2D g2 = rotated.createGraphics();
-            g2.translate(h, 0); // Recenters field image to prevent image from dissapearing from view
-            g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, pi/2 is 90 degrees instead of a rounded innacurate decimal
+            if (flipped) {
+                g2.translate(h, 0); // Recenters field image to prevent image from dissapearing from view
+                g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, pi/2 is 90 degrees instead of a rounded innacurate decimal
+            }
             g2.drawImage(fieldImage, 0, 0, null);
             g2.dispose();
             fieldImage = rotated;
-            pixelsPerMeterX = fieldImage.getWidth() / GoToBallLine.FIELD_WIDTH;
-            pixelsPerMeterY = fieldImage.getHeight() / GoToBallLine.FIELD_LENGTH;
+            pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.FIELD_WIDTH:GoToBallLine.FIELD_LENGTH);
+            pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.FIELD_LENGTH:GoToBallLine.FIELD_WIDTH);
             detectFieldBoundaries();
         } catch (Exception e) {
             System.err.println("Failed to load field image: " + e.getMessage());
@@ -317,6 +344,12 @@ class BallPanel extends JPanel {
         }
         
         javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
+            boolean newFlipped = GoToBallLine.isRedAllianceSub.get();
+            if (newFlipped != lastFlipped){
+                lastFlipped = newFlipped;
+                flipped = newFlipped;
+                applyRotation();
+            }
             FuelStruct[] ballsRaw = GoToBallLine.fuelSub.get();
             Pose2d robotPose = GoToBallLine.currentPose;
             double robotX = robotPose.getX();
@@ -328,8 +361,8 @@ class BallPanel extends JPanel {
             for (FuelStruct ball : ballsRaw) {
                 double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
                 double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
-                double rotatedX = fieldY;
-                double rotatedY = fieldX;
+                double rotatedX = flipped ? fieldY:fieldX;
+                double rotatedY = flipped ? fieldX:fieldY;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
@@ -369,8 +402,8 @@ class BallPanel extends JPanel {
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
                     double fieldAngle = Math.atan2(dy, dx) - Math.PI / 2;
-                    double fieldX = curr[1];
-                    double fieldY = curr[0];
+                    double fieldX = flipped ? curr[1]:curr[0];
+                    double fieldY = flipped ? curr[0]:curr[1];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
                 }
             }
