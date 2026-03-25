@@ -254,21 +254,22 @@ class BallPanel extends JPanel {
     }
 
     private void applyRotation() {
+        int w = originalFieldImage.getWidth();
+        int h = originalFieldImage.getHeight();
+        BufferedImage rotated = new BufferedImage(h, w, originalFieldImage.getType());
+        Graphics2D g2 = rotated.createGraphics();
         if (flipped) {
-            int w = originalFieldImage.getWidth();
-            int h = originalFieldImage.getHeight();
-            BufferedImage rotated = new BufferedImage(h, w, originalFieldImage.getType());
-            Graphics2D g2 = rotated.createGraphics();
             g2.translate(h, 0);
-            g2.rotate(Math.PI / 2);
-            g2.drawImage(originalFieldImage, 0, 0, null);
-            g2.dispose();
-            fieldImage = rotated;
+            g2.rotate(Math.PI / 2);   // CW 90° for red
         } else {
-            fieldImage = originalFieldImage;
+            g2.translate(0, w);
+            g2.rotate(-Math.PI / 2);  // CCW 90° for blue
         }
-        pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_LENGTH);
-        pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.FIELD_LENGTH : GoToBallLine.FIELD_WIDTH);
+        g2.drawImage(originalFieldImage, 0, 0, null);
+        g2.dispose();
+        fieldImage = rotated;
+        pixelsPerMeterX = fieldImage.getWidth() / GoToBallLine.FIELD_WIDTH;
+        pixelsPerMeterY = fieldImage.getHeight() / GoToBallLine.FIELD_LENGTH;
         detectFieldBoundaries();
     }
     private void detectFieldBoundaries() {
@@ -367,8 +368,8 @@ class BallPanel extends JPanel {
             for (FuelStruct ball : ballsRaw) {
                 double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
                 double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
-                double rotatedX = flipped ? fieldY:fieldX;
-                double rotatedY = flipped ? fieldX:fieldY;
+                double rotatedX = flipped ? fieldY : GoToBallLine.FIELD_WIDTH - fieldY;
+                double rotatedY = flipped ? fieldX : fieldX;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
@@ -408,8 +409,8 @@ class BallPanel extends JPanel {
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
                     double fieldAngle = Math.atan2(dy, dx) - Math.PI / 2;
-                    double fieldX = flipped ? curr[1]:curr[0];
-                    double fieldY = flipped ? curr[0]:curr[1];
+                    double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_WIDTH - curr[1];
+                    double fieldY = curr[0];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
                 }
             }
