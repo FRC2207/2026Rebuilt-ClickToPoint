@@ -369,7 +369,7 @@ class BallPanel extends JPanel {
                 double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
                 double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
                 double rotatedX = flipped ? fieldY : GoToBallLine.FIELD_WIDTH - fieldY;
-                double rotatedY = flipped ? fieldX : fieldX;
+                double rotatedY = flipped ? fieldX : GoToBallLine.FIELD_LENGTH - fieldX;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
@@ -409,8 +409,8 @@ class BallPanel extends JPanel {
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
                     double fieldAngle = Math.atan2(dy, dx) - Math.PI / 2;
-                    double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_WIDTH - curr[1];
-                    double fieldY = curr[0];
+                    double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_LENGTH - curr[1];
+                    double fieldY = flipped ? curr[0] : GoToBallLine.FIELD_WIDTH - curr[0];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
                 }
             }
