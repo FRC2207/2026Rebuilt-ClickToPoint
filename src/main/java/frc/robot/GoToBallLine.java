@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
@@ -498,7 +499,7 @@ class BallPanel extends JPanel {
            if (!dragPath.isEmpty()) {
             double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
             double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
-            g2d.setColor(Color.getHSBColor(29, 1, 1));
+            g2d.setColor(new Color(200, 75, 0));
             g2d.setStroke(new BasicStroke(3));
             for (int i = 1; i < dragPath.size(); i++) {
                 double[] prev = dragPath.get(i - 1);
