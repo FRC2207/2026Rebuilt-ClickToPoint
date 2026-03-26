@@ -536,17 +536,18 @@ class BallPanel extends JPanel {
                 }
             }
             //Draw the robot!
-            double fakeX = 10;
-            double fakeY = 10;
+            double fakeX = 1;
+            double fakeY = 1;
             double fakeRot = 45    /360 * Math.PI * 2;
             double[] botXCorners = {fakeX - GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX - GoToBallLine.ROBOT_WIDTH/2};
             double[] botYCorners = {fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2};
             int[] pixelBotX = new int[4];
             int[] pixelBotY = new int[4];
-            for (int i = 0; i > 3; ++i){
-                pixelBotX[i] = (int) (botXCorners[i] * pixelsPerMeterX);
-                pixelBotY[i] = (int) (botYCorners[i] * pixelsPerMeterY);
+            for (int i = 0; i <= 3; ++i){
+                pixelBotX[i] = (int)Math.round(botXCorners[i] * panelPixelsPerMeterX);
+                pixelBotY[i] = (int)Math.round(botYCorners[i] * panelPixelsPerMeterY);
             }
+            g2d.setColor(Color.BLUE);
             g2d.drawPolygon(pixelBotX, pixelBotY, 4);
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
