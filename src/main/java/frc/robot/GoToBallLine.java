@@ -24,7 +24,8 @@ public class GoToBallLine{
     static final double FIELD_LENGTH = 16.46; // 54 feet
     static final double FIELD_WIDTH = 8.23;   // 27 feet
     static final int PIXELS_PER_METER = 50;   // Scale factor for display
-
+    static final double ROBOT_WIDTH = 1.080;
+    static final double ROBOT_HIEGHT = 0.705;
     public static NetworkTableInstance inst;
     public static NetworkTable table;
     public static NetworkTable poseTable;
@@ -381,6 +382,20 @@ class BallPanel extends JPanel {
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
+            setLayout(new BorderLayout());
+            JButton clearButton = new JButton("Clear Path");
+            clearButton.setFocusPainted(false);
+            clearButton.setBackground(new Color(200, 75, 0));
+            clearButton.setForeground(Color.WHITE);
+            clearButton.setBorderPainted(false);
+            clearButton.addActionListener(evt2 -> {
+                dragPath.clear();
+                repaint();
+            });
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            buttonPanel.setOpaque(false);
+            buttonPanel.add(clearButton);
+            add(buttonPanel, BorderLayout.NORTH);
             repaint();
         });
         ntUpdateTimer.start();
@@ -505,21 +520,34 @@ class BallPanel extends JPanel {
                             pixelRadius * 2, pixelRadius * 2);
             }
             // Draw the drag line
-           if (!dragPath.isEmpty()) {
-            double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
-            double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
-            g2d.setColor(new Color(200, 75, 0));
-            g2d.setStroke(new BasicStroke(3));
-            for (int i = 1; i < dragPath.size(); i++) {
-                double[] prev = dragPath.get(i - 1);
-                double[] curr = dragPath.get(i);
-                int x1 = (int)(prev[0] * panelPixelsPerMeterXLine);
-                int y1 = (int)(prev[1] * panelPixelsPerMeterYLine);
-                int x2 = (int)(curr[0] * panelPixelsPerMeterXLine);
-                int y2 = (int)(curr[1] * panelPixelsPerMeterYLine);
-                g2d.drawLine(x1, y1, x2, y2);
+            if (!dragPath.isEmpty()) {
+                double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
+                double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
+                g2d.setColor(new Color(200, 75, 0));
+                g2d.setStroke(new BasicStroke(3));
+                for (int i = 1; i < dragPath.size(); i++) {
+                    double[] prev = dragPath.get(i - 1);
+                    double[] curr = dragPath.get(i);
+                    int x1 = (int)(prev[0] * panelPixelsPerMeterXLine);
+                    int y1 = (int)(prev[1] * panelPixelsPerMeterYLine);
+                    int x2 = (int)(curr[0] * panelPixelsPerMeterXLine);
+                    int y2 = (int)(curr[1] * panelPixelsPerMeterYLine);
+                    g2d.drawLine(x1, y1, x2, y2);
+                }
             }
-        }
+            //Draw the robot!
+            double fakeX = 10;
+            double fakeY = 10;
+            double fakeRot = 45    /360 * Math.PI * 2;
+            double[] botXCorners = {fakeX - GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX - GoToBallLine.ROBOT_WIDTH/2};
+            double[] botYCorners = {fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2};
+            int[] pixelBotX = new int[4];
+            int[] pixelBotY = new int[4];
+            for (int i = 0; i > 3; ++i){
+                pixelBotX[i] = (int) (botXCorners[i] * pixelsPerMeterX);
+                pixelBotY[i] = (int) (botYCorners[i] * pixelsPerMeterY);
+            }
+            g2d.drawPolygon(pixelBotX, pixelBotY, 4);
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
