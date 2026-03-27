@@ -239,6 +239,7 @@ class BallPanel extends JPanel {
     boolean isDragging = false;
     boolean flipped = true;
     boolean lastFlipped = true;
+    boolean ballsAreRobotRelative = false; // Set to true when running on real robot, false for sim
     BufferedImage originalFieldImage;
 
     private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
@@ -360,6 +361,7 @@ class BallPanel extends JPanel {
         }
         
         javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
+            GoToBallLine.currentPose = GoToBallLine.poseSub.get();
             boolean newFlipped = GoToBallLine.isRedAllianceSub.get();
             if (newFlipped != lastFlipped){
                 lastFlipped = newFlipped;
@@ -375,8 +377,16 @@ class BallPanel extends JPanel {
             double sinTheta = Math.sin(robotTheta);
             java.util.List<FuelStruct> fieldRelativeBalls = new java.util.ArrayList<>();
             for (FuelStruct ball : ballsRaw) {
-                double fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
-                double fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
+                double fieldX, fieldY;
+                if (ballsAreRobotRelative) {
+                    // Robot-relative: apply robot pose transform first
+                    fieldX = robotX + cosTheta * ball.x - sinTheta * ball.y;
+                    fieldY = robotY + sinTheta * ball.x + cosTheta * ball.y;
+                } else {
+                    // Already field-relative: use directly
+                    fieldX = ball.x;
+                    fieldY = ball.y;
+                }
                 double rotatedX = flipped ? fieldY : GoToBallLine.FIELD_WIDTH - fieldY;
                 double rotatedY = flipped ? fieldX : GoToBallLine.FIELD_LENGTH - fieldX;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
@@ -385,11 +395,13 @@ class BallPanel extends JPanel {
             setLayout(new BorderLayout());
             JButton clearButton = new JButton("Clear Path");
             clearButton.setFocusPainted(false);
-            clearButton.setBackground(new Color(200, 75, 0));
             clearButton.setForeground(Color.WHITE);
+            clearButton.setBackground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
             clearButton.setBorderPainted(false);
             clearButton.addActionListener(evt2 -> {
                 dragPath.clear();
+                waypointsPub.set(new Pose2d[0]);
+                publisher.set(new Pose2d(null));
                 repaint();
             });
             JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -523,7 +535,7 @@ class BallPanel extends JPanel {
             if (!dragPath.isEmpty()) {
                 double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
                 double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
-                g2d.setColor(new Color(200, 75, 0));
+                g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
                 g2d.setStroke(new BasicStroke(3));
                 for (int i = 1; i < dragPath.size(); i++) {
                     double[] prev = dragPath.get(i - 1);
@@ -536,19 +548,43 @@ class BallPanel extends JPanel {
                 }
             }
             //Draw the robot!
-            double fakeX = 1;
-            double fakeY = 1;
-            double fakeRot = 45    /360 * Math.PI * 2;
-            double[] botXCorners = {fakeX - GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX + GoToBallLine.ROBOT_WIDTH/2, fakeX - GoToBallLine.ROBOT_WIDTH/2};
-            double[] botYCorners = {fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY + GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2, fakeY - GoToBallLine.ROBOT_HIEGHT/2};
+            Pose2d robotPose = GoToBallLine.currentPose;
+            double rawX = robotPose.getX();
+            double rawY = robotPose.getY();
+            double rawRot = robotPose.getRotation().getRadians();
+            // Rotate pose to display coords same as balls
+            double displayX = flipped ? rawY : GoToBallLine.FIELD_WIDTH - rawY;
+            double displayY = flipped ? rawX : GoToBallLine.FIELD_LENGTH - rawX;
+            double displayRot = flipped ? -rawRot - Math.PI / 2 : -rawRot + Math.PI / 2;
+            double hw = GoToBallLine.ROBOT_WIDTH / 2;
+            double hh = GoToBallLine.ROBOT_HIEGHT / 2;
+            double cosR = Math.cos(displayRot);
+            double sinR = Math.sin(displayRot);
+            // Four corners relative to center, rotated
+            double[][] corners = {
+                {-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}
+            };
             int[] pixelBotX = new int[4];
             int[] pixelBotY = new int[4];
-            for (int i = 0; i <= 3; ++i){
-                pixelBotX[i] = (int)Math.round(botXCorners[i] * panelPixelsPerMeterX);
-                pixelBotY[i] = (int)Math.round(botYCorners[i] * panelPixelsPerMeterY);
+            for (int i = 0; i < 4; i++) {
+                double rx = corners[i][0] * cosR - corners[i][1] * sinR + displayX;
+                double ry = corners[i][0] * sinR + corners[i][1] * cosR + displayY;
+                pixelBotX[i] = (int)(rx * panelPixelsPerMeterX);
+                pixelBotY[i] = (int)(ry * panelPixelsPerMeterY);
             }
-            g2d.setColor(Color.BLUE);
+            g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
+            g2d.setStroke(new BasicStroke(5));
             g2d.drawPolygon(pixelBotX, pixelBotY, 4);
+
+            // Draw heading arrow from center
+            int centerPixelX = (int)(displayX * panelPixelsPerMeterX);
+            int centerPixelY = (int)(displayY * panelPixelsPerMeterY);
+            int arrowLen = (int)(0.4 * panelPixelsPerMeterX);
+            int arrowEndX = centerPixelX + (int)(Math.cos(displayRot) * arrowLen);
+            int arrowEndY = centerPixelY + (int)(Math.sin(displayRot) * arrowLen);
+            g2d.setColor(Color.WHITE);
+            g2d.setStroke(new BasicStroke(3));
+            g2d.drawLine(centerPixelX, centerPixelY, arrowEndX, arrowEndY);
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
