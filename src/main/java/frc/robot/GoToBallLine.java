@@ -21,8 +21,12 @@ import frc.robot.FuelStruct;
 
 public class GoToBallLine{
     // 2026 FRC field dimensions (in meters)
-    static final double FIELD_LENGTH = 16.46; // 54 feet
+    static final double FIELD_HEIGHT = 16.46; // 54 feet
     static final double FIELD_WIDTH = 8.23;   // 27 feet
+    static final double FIELD_LENGTH_MARGIN = 0.3;
+    static final double FIELD_WIDTH_MARGIN = 0.2;
+    static final double IMAGE_WIDTH_METERS = FIELD_WIDTH + FIELD_WIDTH_MARGIN * 2;
+    static final double IMAGE_HEIGHT_METERS = FIELD_HEIGHT + FIELD_LENGTH_MARGIN * 2;
     static final int PIXELS_PER_METER = 50;   // Scale factor for display
     static final double ROBOT_WIDTH = 1.080;
     static final double ROBOT_HIEGHT = 0.705;
@@ -50,8 +54,8 @@ public class GoToBallLine{
             JFrame frame = new JFrame("FRC Live Field Click To Point");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // If window is closed, program is stopped.
             frame.setSize(
-                (int)(FIELD_WIDTH * PIXELS_PER_METER) + 50,
-                (int)(FIELD_LENGTH * PIXELS_PER_METER) + 50
+                (int)(IMAGE_HEIGHT_METERS * PIXELS_PER_METER),
+                (int)(IMAGE_WIDTH_METERS * PIXELS_PER_METER)
             );
             frame.setLocationRelativeTo(null);
             BallPanel panel = new BallPanel();
@@ -278,8 +282,8 @@ class BallPanel extends JPanel {
         g2.drawImage(originalFieldImage, 0, 0, null);
         g2.dispose();
         fieldImage = rotated;
-        pixelsPerMeterX = fieldImage.getWidth() / GoToBallLine.FIELD_WIDTH;
-        pixelsPerMeterY = fieldImage.getHeight() / GoToBallLine.FIELD_LENGTH;
+        pixelsPerMeterX = fieldImage.getWidth() / GoToBallLine.IMAGE_WIDTH_METERS;
+        pixelsPerMeterY = fieldImage.getHeight() / GoToBallLine.IMAGE_HEIGHT_METERS;
         detectFieldBoundaries();
     }
     private void detectFieldBoundaries() {
@@ -314,9 +318,9 @@ class BallPanel extends JPanel {
         double marginX = 0.08;  // Margin to get inside the border
         double marginY = 0.08;
         fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
-        fieldBoundMaxX = Math.min(flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_LENGTH, fieldBoundMaxX - marginX);
+        fieldBoundMaxX = Math.min(flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_HEIGHT, fieldBoundMaxX - marginX);
         fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
-        fieldBoundMaxY = Math.min(flipped ? GoToBallLine.FIELD_LENGTH : GoToBallLine.FIELD_WIDTH, fieldBoundMaxY - marginY);
+        fieldBoundMaxY = Math.min(flipped ? GoToBallLine.FIELD_HEIGHT : GoToBallLine.FIELD_WIDTH, fieldBoundMaxY - marginY);
         System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
             " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
             String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
@@ -351,8 +355,8 @@ class BallPanel extends JPanel {
             g2.drawImage(fieldImage, 0, 0, null);
             g2.dispose();
             fieldImage = rotated;
-            pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.FIELD_WIDTH:GoToBallLine.FIELD_LENGTH);
-            pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.FIELD_LENGTH:GoToBallLine.FIELD_WIDTH);
+            pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.IMAGE_WIDTH_METERS:GoToBallLine.IMAGE_HEIGHT_METERS);
+            pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.IMAGE_HEIGHT_METERS:GoToBallLine.IMAGE_WIDTH_METERS);
             detectFieldBoundaries();
         } catch (Exception e) {
             System.err.println("Failed to load field image: " + e.getMessage());
@@ -387,8 +391,8 @@ class BallPanel extends JPanel {
                     fieldX = ball.x;
                     fieldY = ball.y;
                 }
-                double rotatedX = flipped ? fieldY : GoToBallLine.FIELD_WIDTH - fieldY;
-                double rotatedY = flipped ? fieldX : GoToBallLine.FIELD_LENGTH - fieldX;
+                double rotatedX = flipped ? fieldY : GoToBallLine.IMAGE_WIDTH_METERS - fieldY;
+                double rotatedY = flipped ? fieldX : GoToBallLine.IMAGE_HEIGHT_METERS - fieldX;
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
@@ -417,8 +421,8 @@ class BallPanel extends JPanel {
         public void mousePressed(MouseEvent e) {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
-            double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-            double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
+            double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+            double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
             dragPath.clear();
             dragPath.add(new double[]{e.getX() / imagePixelsPerMeterX, e.getY() / imagePixelsPerMeterY});
             isDragging = true;
@@ -444,8 +448,8 @@ class BallPanel extends JPanel {
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
                     double fieldAngle = flipped ? Math.atan2(-dy, dx): Math.atan2(dy, -dx);
-                    double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_LENGTH - curr[1];
-                    double fieldY = flipped ? curr[0] : GoToBallLine.FIELD_WIDTH - curr[0];
+                    double fieldX = flipped ? curr[1] : GoToBallLine.IMAGE_HEIGHT_METERS - curr[1];
+                    double fieldY = flipped ? curr[0] : GoToBallLine.IMAGE_WIDTH_METERS - curr[0];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2)));
                 }
             }
@@ -469,8 +473,8 @@ class BallPanel extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
                 double x = e.getX() / imagePixelsPerMeterX;
                 double y = e.getY() / imagePixelsPerMeterY;
                 // Only add point if moved more than 0.05m to avoid too many points
@@ -487,8 +491,8 @@ class BallPanel extends JPanel {
             public void mouseMoved(MouseEvent e) {
                 int panelWidth = getWidth();
                 int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
+                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
                 double mouseXMeters = e.getX() / imagePixelsPerMeterX;
                 double mouseYMeters = e.getY() / imagePixelsPerMeterY;
                 FuelStruct newHoveredBall = null;
@@ -517,8 +521,8 @@ class BallPanel extends JPanel {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
             g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            double panelPixelsPerMeterX = panelWidth / GoToBallLine.FIELD_WIDTH;
-            double panelPixelsPerMeterY = panelHeight / GoToBallLine.FIELD_LENGTH;
+            double panelPixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+            double panelPixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
             for (FuelStruct ball : vision_data) {
                 int pixelX = (int)(ball.x * panelPixelsPerMeterX);
                 int pixelY = (int)(ball.y * panelPixelsPerMeterY);
@@ -533,8 +537,8 @@ class BallPanel extends JPanel {
             }
             // Draw the drag line
             if (!dragPath.isEmpty()) {
-                double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.FIELD_WIDTH;
-                double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.FIELD_LENGTH;
+                double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+                double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
                 g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
                 g2d.setStroke(new BasicStroke(3));
                 for (int i = 1; i < dragPath.size(); i++) {
@@ -553,8 +557,8 @@ class BallPanel extends JPanel {
             double rawY = robotPose.getY();
             double rawRot = robotPose.getRotation().getRadians() - Math.PI / 2;
             // Rotate pose to display coords same as balls
-            double displayX = flipped ? rawY : GoToBallLine.FIELD_WIDTH - rawY;
-            double displayY = flipped ? rawX : GoToBallLine.FIELD_LENGTH - rawX;
+            double displayX = flipped ? rawY : GoToBallLine.IMAGE_WIDTH_METERS - rawY;
+            double displayY = flipped ? rawX : GoToBallLine.IMAGE_HEIGHT_METERS - rawX;
             double displayRot = flipped ? -rawRot - Math.PI / 2 : -rawRot + Math.PI / 2;
             double hw = GoToBallLine.ROBOT_WIDTH / 2;
             double hh = GoToBallLine.ROBOT_HIEGHT / 2;
