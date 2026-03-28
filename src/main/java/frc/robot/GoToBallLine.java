@@ -443,7 +443,7 @@ class BallPanel extends JPanel {
                 accumulated += segLen;
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
-                    double fieldAngle = Math.atan2(dy, dx);// - Math.PI / 2;
+                    double fieldAngle = Math.atan2(-dy, dx);// - Math.PI / 2;
                     double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_LENGTH - curr[1];
                     double fieldY = flipped ? curr[0] : GoToBallLine.FIELD_WIDTH - curr[0];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
@@ -579,12 +579,15 @@ class BallPanel extends JPanel {
             // Draw heading arrow from center
             int centerPixelX = (int)(displayX * panelPixelsPerMeterX);
             int centerPixelY = (int)(displayY * panelPixelsPerMeterY);
-            int arrowLen = (int)(0.4 * panelPixelsPerMeterX);
-            int arrowEndX = centerPixelX + (int)(Math.cos(displayRot) * arrowLen);
-            int arrowEndY = centerPixelY + (int)(Math.sin(displayRot) * arrowLen);
+            int arrowLen = (int)(0.3 * panelPixelsPerMeterX);
+            int arrowEndX = centerPixelX + (int)(Math.cos(displayRot + Math.PI/2) * arrowLen);
+            int arrowEndY = centerPixelY + (int)(Math.sin(displayRot+ Math.PI/2) * arrowLen);
             g2d.setColor(Color.WHITE);
             g2d.setStroke(new BasicStroke(3));
             g2d.drawLine(centerPixelX, centerPixelY, arrowEndX, arrowEndY);
+
+            
+
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
