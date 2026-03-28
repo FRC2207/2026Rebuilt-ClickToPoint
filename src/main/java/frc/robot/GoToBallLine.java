@@ -443,7 +443,7 @@ class BallPanel extends JPanel {
                 accumulated += segLen;
                 if (accumulated >= spacing || i == 1) {
                     accumulated = 0;
-                    double fieldAngle = Math.atan2(-dy, dx);// - Math.PI / 2;
+                    double fieldAngle = flipped ? Math.atan2(-dy, dx): Math.atan2(dy, -dx);
                     double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_LENGTH - curr[1];
                     double fieldY = flipped ? curr[0] : GoToBallLine.FIELD_WIDTH - curr[0];
                     waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
