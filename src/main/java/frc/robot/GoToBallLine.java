@@ -446,13 +446,13 @@ class BallPanel extends JPanel {
                     double fieldAngle = flipped ? Math.atan2(-dy, dx): Math.atan2(dy, -dx);
                     double fieldX = flipped ? curr[1] : GoToBallLine.FIELD_LENGTH - curr[1];
                     double fieldY = flipped ? curr[0] : GoToBallLine.FIELD_WIDTH - curr[0];
-                    waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle)));
+                    waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2)));
                 }
             }
-            if (waypoints.size()>25){
+            if (waypoints.size()>35){
                 java.util.List<Pose2d> downsampled = new java.util.ArrayList<>();
-                for (int i = 0; i < 25; i++) {
-                    int index = (int)Math.round(i * (waypoints.size() - 1) / 24.0);
+                for (int i = 0; i < 35; i++) {
+                    int index = (int)Math.round(i * (waypoints.size() - 1) / 34.0);
                     downsampled.add(waypoints.get(index));
                 }
                 waypoints = downsampled;
@@ -551,7 +551,7 @@ class BallPanel extends JPanel {
             Pose2d robotPose = GoToBallLine.currentPose;
             double rawX = robotPose.getX();
             double rawY = robotPose.getY();
-            double rawRot = robotPose.getRotation().getRadians();
+            double rawRot = robotPose.getRotation().getRadians() - Math.PI / 2;
             // Rotate pose to display coords same as balls
             double displayX = flipped ? rawY : GoToBallLine.FIELD_WIDTH - rawY;
             double displayY = flipped ? rawX : GoToBallLine.FIELD_LENGTH - rawX;
