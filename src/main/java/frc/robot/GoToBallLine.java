@@ -439,7 +439,6 @@ class BallPanel extends JPanel {
         //LeftTrench.setMaximumSize(new Dimension(5,5));
         LeftTrench.setPreferredSize(new Dimension(60,60));
         LeftTrench.setFocusPainted(false);
-        LeftTrench.setOpaque(true);
         LeftTrench.setForeground(Color.ORANGE);
         LeftTrench.setBorderPainted(true);
         gbc.gridx = 0; // Column 0
