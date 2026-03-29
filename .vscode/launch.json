@@ -1,54 +1,51 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "java",
-      "name": "GoToBallLine (Desktop)",
-      "request": "launch",
-      "mainClass": "frc.robot.GoToBallLine",
-      "projectName": "2026Rebuilt-ClickToPoint",
-      "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release",
-      "cwd": "${workspaceFolder}",
-      "windows": {
-        "env": {
-          "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "GoToBallLine (Desktop)",
+            "request": "launch",
+            "mainClass": "frc.robot.GoToBallLine",
+            "projectName": "2026Rebuilt-ClickToPoint",
+            "preLaunchTask": "extractJNI",
+            "cwd": "${workspaceFolder}",
+            "windows": {
+                "env": {
+                    "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
+                },
+                "vmArgs": "-Djava.library.path=${workspaceFolder}\\build\\jni\\release"
+            },
+            "linux": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
+                },
+                "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
+            },
+            "osx": {
+                "env": {
+                    "DYLD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:DYLD_LIBRARY_PATH}"
+                },
+                "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
+            }
         },
-        "vmArgs": "-Djava.library.path=${workspaceFolder}\\build\\jni\\release"
-      },
-      "linux": {
-        "env": {
-          "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
+        {
+            "type": "java",
+            "name": "Main",
+            "request": "launch",
+            "mainClass": "frc.robot.Main",
+            "projectName": "2026Rebuilt-ClickToPoint"
         },
-        "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
-      },
-      "osx": {
-        "env": {
-          "DYLD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:DYLD_LIBRARY_PATH}"
+        {
+            "type": "wpilib",
+            "name": "WPILib Desktop Debug",
+            "request": "launch",
+            "desktop": true
         },
-        "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
-      }
-    },
-    {
-      "type": "java",
-      "name": "Main",
-      "request": "launch",
-      "mainClass": "frc.robot.Main",
-      "projectName": "2026Rebuilt-ClickToPoint"
-    },
-    {
-      "type": "wpilib",
-      "name": "WPILib Desktop Debug",
-      "request": "launch",
-      "desktop": true
-    },
-    {
-      "type": "wpilib",
-      "name": "WPILib roboRIO Debug",
-      "request": "launch",
-      "desktop": false
-    }
-  ]
+        {
+            "type": "wpilib",
+            "name": "WPILib roboRIO Debug",
+            "request": "launch",
+            "desktop": false
+        }
+    ]
 }
