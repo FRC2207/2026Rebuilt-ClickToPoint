@@ -10,12 +10,25 @@
       "request": "launch",
       "mainClass": "frc.robot.GoToBallLine",
       "projectName": "2026Rebuilt-ClickToPoint",
-      "vmArgs": "-Djava.library.path=${workspaceFolder}\\build\\jni\\release",
+      "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release",
       "cwd": "${workspaceFolder}",
       "windows": {
-          "env": {
-              "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
-          }
+        "env": {
+          "PATH": "${workspaceFolder}\\build\\jni\\release;${env:PATH}"
+        },
+        "vmArgs": "-Djava.library.path=${workspaceFolder}\\build\\jni\\release"
+      },
+      "linux": {
+        "env": {
+          "LD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:LD_LIBRARY_PATH}"
+        },
+        "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
+      },
+      "osx": {
+        "env": {
+          "DYLD_LIBRARY_PATH": "${workspaceFolder}/build/jni/release:${env:DYLD_LIBRARY_PATH}"
+        },
+        "vmArgs": "-Djava.library.path=${workspaceFolder}/build/jni/release"
       }
     },
     {
