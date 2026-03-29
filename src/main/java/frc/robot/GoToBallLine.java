@@ -1,6 +1,9 @@
 package frc.robot;
 
 import javax.swing.*;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
@@ -396,26 +399,68 @@ class BallPanel extends JPanel {
                 fieldRelativeBalls.add(new FuelStruct((float) rotatedX, (float) rotatedY));
             }
             vision_data = fieldRelativeBalls;
-            setLayout(new BorderLayout());
-            JButton clearButton = new JButton("Clear Path");
-            clearButton.setFocusPainted(false);
-            clearButton.setForeground(Color.WHITE);
-            clearButton.setBackground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
-            clearButton.setBorderPainted(false);
-            clearButton.addActionListener(evt2 -> {
-                dragPath.clear();
-                waypointsPub.set(new Pose2d[0]);
-                publisher.set(new Pose2d(null));
-                repaint();
-            });
-            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            buttonPanel.setOpaque(false);
-            buttonPanel.add(clearButton);
-            add(buttonPanel, BorderLayout.NORTH);
             repaint();
         });
         ntUpdateTimer.start();
         
+        
+        
+        setLayout(new BorderLayout());
+        JButton clearButton = new JButton("Clear Path");
+        clearButton.setFocusPainted(false);
+        clearButton.setForeground(Color.WHITE);
+        clearButton.setBackground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
+        clearButton.setBorderPainted(false);
+        clearButton.addActionListener(evt2 -> {
+            dragPath.clear();
+            waypointsPub.set(new Pose2d[0]);
+            publisher.set(new Pose2d(null));
+            repaint();
+        });
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setOpaque(false);
+        buttonPanel.add(clearButton);
+        add(buttonPanel, BorderLayout.NORTH);
+        JPanel presetPanel = new JPanel(new GridBagLayout());
+        presetPanel.setOpaque(false);
+        add(presetPanel);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5); // Add 5 pixels of padding around all sides
+
+
+        JButton LeftTrench = new JButton();
+        JButton RightTrench = new JButton();
+        JButton Left = new JButton();
+        JButton Middle = new JButton();
+        JButton Right = new JButton();
+        JButton BottomRight = new JButton();
+        LeftTrench.setFocusPainted(false);
+        LeftTrench.setBackground(Color.ORANGE);
+        LeftTrench.setBorderPainted(false);
+        gbc.gridx = 0; // Column 0
+        gbc.gridy = 0; // Row 0
+        presetPanel.add(LeftTrench, gbc);
+
+        RightTrench.setFocusPainted(false);
+        RightTrench.setBackground(Color.ORANGE);
+        RightTrench.setBorderPainted(false);
+
+        Left.setFocusPainted(false);
+        Left.setBackground(Color.ORANGE);
+        Left.setBorderPainted(false);
+
+        Middle.setFocusPainted(false);
+        Middle.setBackground(Color.ORANGE);
+        Middle.setBorderPainted(false);
+
+        Right.setFocusPainted(false);
+        Right.setBackground(Color.ORANGE);
+        Right.setBorderPainted(false);
+
+        BottomRight.setFocusPainted(false);
+        BottomRight.setBackground(Color.ORANGE);
+        BottomRight.setBorderPainted(false);
+
         addMouseListener(new MouseAdapter() {
         @Override
         public void mousePressed(MouseEvent e) {
