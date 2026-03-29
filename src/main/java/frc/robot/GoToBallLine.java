@@ -8,6 +8,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.RGBImageFilter;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -408,58 +409,88 @@ class BallPanel extends JPanel {
         setLayout(new BorderLayout());
         JButton clearButton = new JButton("Clear Path");
         clearButton.setFocusPainted(false);
-        clearButton.setForeground(Color.WHITE);
-        clearButton.setBackground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
-        clearButton.setBorderPainted(false);
+        clearButton.setForeground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
+        clearButton.setBorderPainted(true);
         clearButton.addActionListener(evt2 -> {
             dragPath.clear();
             waypointsPub.set(new Pose2d[0]);
             publisher.set(new Pose2d(null));
             repaint();
         });
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
         buttonPanel.add(clearButton);
         add(buttonPanel, BorderLayout.NORTH);
         JPanel presetPanel = new JPanel(new GridBagLayout());
         presetPanel.setOpaque(false);
-        add(presetPanel);
+        add(presetPanel, BorderLayout.SOUTH);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5); // Add 5 pixels of padding around all sides
+        // TODO: Check these values for the kindle
+        gbc.insets = new Insets(10, 40, 10, 40); // This pixels should be good for the kindle. It is the space around each button 
 
 
-        JButton LeftTrench = new JButton();
-        JButton RightTrench = new JButton();
-        JButton Left = new JButton();
-        JButton Middle = new JButton();
-        JButton Right = new JButton();
-        JButton BottomRight = new JButton();
+        JButton LeftTrench = new JButton("Trench");
+        JButton RightTrench = new JButton("Trench");
+        JButton Left = new JButton("ShootL");
+        JButton Middle = new JButton("ShootM");
+        JButton Right = new JButton("ShootR");
+        JButton outpost = new JButton("Outpost");
+        //LeftTrench.setMaximumSize(new Dimension(5,5));
+        LeftTrench.setPreferredSize(new Dimension(60,60));
         LeftTrench.setFocusPainted(false);
-        LeftTrench.setBackground(Color.ORANGE);
-        LeftTrench.setBorderPainted(false);
+        LeftTrench.setOpaque(true);
+        LeftTrench.setForeground(Color.ORANGE);
+        LeftTrench.setBorderPainted(true);
         gbc.gridx = 0; // Column 0
         gbc.gridy = 0; // Row 0
         presetPanel.add(LeftTrench, gbc);
 
+        RightTrench.setPreferredSize(new Dimension(60,60));
         RightTrench.setFocusPainted(false);
         RightTrench.setBackground(Color.ORANGE);
-        RightTrench.setBorderPainted(false);
+        RightTrench.setBorderPainted(true);
+        gbc.gridx = 4; // Column 0
+        gbc.gridy = 0; // Row 0
+        presetPanel.add(RightTrench, gbc);
 
+        JButton fillerButton = new JButton();
+        fillerButton.setBorderPainted(false);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        presetPanel.add(fillerButton, gbc);
+
+        Left.setPreferredSize(new Dimension(60,60));
         Left.setFocusPainted(false);
         Left.setBackground(Color.ORANGE);
-        Left.setBorderPainted(false);
+        Left.setBorderPainted(true);
+        gbc.gridx = 1; // Column 0
+        gbc.gridy = 2; // Row 0
+        presetPanel.add(Left, gbc);
 
+        Middle.setPreferredSize(new Dimension(60,60));
         Middle.setFocusPainted(false);
         Middle.setBackground(Color.ORANGE);
-        Middle.setBorderPainted(false);
+        Middle.setBorderPainted(true);
+        gbc.gridx = 2; // Column 0
+        gbc.gridy = 3; // Row 0
+        presetPanel.add(Middle, gbc);
 
+        Right.setPreferredSize(new Dimension(60,60));
         Right.setFocusPainted(false);
         Right.setBackground(Color.ORANGE);
-        Right.setBorderPainted(false);
+        Right.setBorderPainted(true);
+        gbc.gridx = 3; // Column 0
+        gbc.gridy = 2; // Row 0
+        presetPanel.add(Right, gbc);
 
-        BottomRight.setFocusPainted(false);
-        BottomRight.setBackground(Color.ORANGE);
-        BottomRight.setBorderPainted(false);
+        outpost.setPreferredSize(new Dimension(60,60));
+        outpost.setFocusPainted(false);
+        outpost.setBackground(Color.ORANGE);
+        outpost.setBorderPainted(true);
+        gbc.gridx = 4; // Column 0
+        gbc.gridy = 4; // Row 0
+        presetPanel.add(outpost, gbc);
 
         addMouseListener(new MouseAdapter() {
         @Override
