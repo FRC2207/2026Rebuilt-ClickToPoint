@@ -524,8 +524,8 @@ class BallPanel extends JPanel {
             double panelPixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
             double panelPixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
             for (FuelStruct ball : vision_data) {
-                int pixelX = (int)(ball.x * panelPixelsPerMeterX);
-                int pixelY = (int)(ball.y * panelPixelsPerMeterY);
+                int pixelX = (int)((ball.x + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterX);
+                int pixelY = (int)((ball.y + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterY);
                 int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX));
                 g2d.setColor(Color.YELLOW);
                 g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius,
@@ -544,10 +544,10 @@ class BallPanel extends JPanel {
                 for (int i = 1; i < dragPath.size(); i++) {
                     double[] prev = dragPath.get(i - 1);
                     double[] curr = dragPath.get(i);
-                    int x1 = (int)(prev[0] * panelPixelsPerMeterXLine);
-                    int y1 = (int)(prev[1] * panelPixelsPerMeterYLine);
-                    int x2 = (int)(curr[0] * panelPixelsPerMeterXLine);
-                    int y2 = (int)(curr[1] * panelPixelsPerMeterYLine);
+                    int x1 = (int)((prev[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y1 = (int)((prev[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
+                    int x2 = (int)((curr[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y2 = (int)((curr[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
                     g2d.drawLine(x1, y1, x2, y2);
                 }
             }
@@ -557,8 +557,8 @@ class BallPanel extends JPanel {
             double rawY = robotPose.getY();
             double rawRot = robotPose.getRotation().getRadians() - Math.PI / 2;
             // Rotate pose to display coords same as balls
-            double displayX = flipped ? rawY : GoToBallLine.IMAGE_WIDTH_METERS - rawY;
-            double displayY = flipped ? rawX : GoToBallLine.IMAGE_HEIGHT_METERS - rawX;
+            double displayX = rawX + GoToBallLine.FIELD_WIDTH_MARGIN;
+            double displayY = rawY + GoToBallLine.FIELD_LENGTH_MARGIN;
             double displayRot = flipped ? -rawRot - Math.PI / 2 : -rawRot + Math.PI / 2;
             double hw = GoToBallLine.ROBOT_WIDTH / 2;
             double hh = GoToBallLine.ROBOT_HIEGHT / 2;
