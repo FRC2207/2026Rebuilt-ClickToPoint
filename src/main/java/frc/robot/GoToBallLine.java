@@ -1,15 +1,14 @@
 package frc.robot;
 
 import javax.swing.*;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import javax.tools.Tool;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.RGBImageFilter;
 import java.io.File;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -57,7 +56,7 @@ public class GoToBallLine {
         presetsTable = inst.getTable("PresetTriggers");
 
         inst.startClient4("GoToBallViewer");
-        inst.setServer("localhost", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not,
+        inst.setServer("10.22.7.2", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not,
                                            // it should be your team number(10.22.7.2)
 
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
@@ -454,16 +453,21 @@ class BallPanel extends JPanel {
         });
         ntUpdateTimer.start();
 
+        Font customFont = new Font("Comic Sans", Font.BOLD, 20);
         setLayout(new BorderLayout());
         JButton clearButton = new JButton("Clear Path");
+        clearButton.setFont(customFont);
         clearButton.setFocusPainted(false);
         clearButton.setForeground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
-        clearButton.setBorderPainted(true);
+        clearButton.setBorderPainted(false);
+        clearButton.setPreferredSize(new Dimension(150, 75));
+
         clearButton.addActionListener(evt2 -> {
             dragPath.clear();
             waypointsPub.set(new Pose2d[0]);
             publisher.set(new Pose2d(null));
             repaint();
+            System.out.println("Cleared path");
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -475,20 +479,23 @@ class BallPanel extends JPanel {
         add(presetPanel, BorderLayout.SOUTH);
         GridBagConstraints gbc = new GridBagConstraints();
         // TODO: Check these values for the kindle
-        gbc.insets = new Insets(10, 40, 10, 40); // This pixels should be good for the kindle. It is the space around
+        gbc.insets = new Insets(10, 70, 50, 70); // This pixels should be good for the kindle. It is the space around
                                                  // each button
+        URL iconURL = BallPanel.class.getResource("\\ClickToPoint Preset Point.png");
+        ImageIcon iconImage = new ImageIcon(iconURL);
+        JButton LeftTrench = new JButton(iconImage);
+        JButton RightTrench = new JButton(iconImage);
+        JButton Left = new JButton(iconImage);
+        JButton Middle = new JButton(iconImage);
+        JButton Right = new JButton(iconImage);
+        JButton outpost = new JButton(iconImage);
 
-        JButton LeftTrench = new JButton("Trench");
-        JButton RightTrench = new JButton("Trench");
-        JButton Left = new JButton("ShootL");
-        JButton Middle = new JButton("ShootM");
-        JButton Right = new JButton("ShootR");
-        JButton outpost = new JButton("Outpost");
+        int buttonSize = 100;
         // LeftTrench.setMaximumSize(new Dimension(5,5));
-        LeftTrench.setPreferredSize(new Dimension(60, 60));
+        LeftTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
         LeftTrench.setFocusPainted(false);
-        LeftTrench.setForeground(Color.ORANGE);
-        LeftTrench.setBorderPainted(true);
+        LeftTrench.setBorderPainted(false);
+        LeftTrench.setContentAreaFilled(false);
         gbc.gridx = 0; // Column 0
         gbc.gridy = 0; // Row 0
         presetPanel.add(LeftTrench, gbc);
@@ -496,18 +503,20 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.trenchLeft.set(true);
+                System.out.println("Trench Left preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.trenchLeft.set(false);
+                System.out.println("Trench Left preset deactivated");
             }
         });
 
-        RightTrench.setPreferredSize(new Dimension(60, 60));
+        RightTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
         RightTrench.setFocusPainted(false);
-        RightTrench.setBackground(Color.ORANGE);
-        RightTrench.setBorderPainted(true);
+        RightTrench.setBorderPainted(false);
+        RightTrench.setContentAreaFilled(false);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 0; // Row 0
         presetPanel.add(RightTrench, gbc);
@@ -515,24 +524,29 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.trenchRight.set(true);
+                System.out.println("Trench Right preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.trenchRight.set(false);
+                System.out.println("Trench Right preset deactivated");
             }
         });
 
         JButton fillerButton = new JButton();
         fillerButton.setBorderPainted(false);
+        fillerButton.setFocusPainted(false);
+        fillerButton.setPreferredSize(new Dimension(0, 0));
+        fillerButton.setContentAreaFilled(false);
         gbc.gridx = 0;
         gbc.gridy = 1;
         presetPanel.add(fillerButton, gbc);
 
-        Left.setPreferredSize(new Dimension(60, 60));
+        Left.setPreferredSize(new Dimension(buttonSize,buttonSize));
         Left.setFocusPainted(false);
-        Left.setBackground(Color.ORANGE);
-        Left.setBorderPainted(true);
+        Left.setBorderPainted(false);
+        Left.setContentAreaFilled(false);
         gbc.gridx = 1; // Column 0
         gbc.gridy = 2; // Row 0
         presetPanel.add(Left, gbc);
@@ -540,18 +554,20 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootLeft.set(true);
+                System.out.println("Shoot Left preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.shootLeft.set(false);
+                System.out.println("Shoot Left preset deactivated");
             }
         });
 
-        Middle.setPreferredSize(new Dimension(60, 60));
+        Middle.setPreferredSize(new Dimension(buttonSize,buttonSize));
         Middle.setFocusPainted(false);
-        Middle.setBackground(Color.ORANGE);
-        Middle.setBorderPainted(true);
+        Middle.setBorderPainted(false);
+        Middle.setContentAreaFilled(false);
         gbc.gridx = 2; // Column 0
         gbc.gridy = 3; // Row 0
         presetPanel.add(Middle, gbc);
@@ -559,18 +575,20 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootMiddle.set(true);
+                System.out.println("Shoot Middle preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.shootMiddle.set(false);
+                System.out.println("Shoot Middle preset deactivated");
             }
         });
 
-        Right.setPreferredSize(new Dimension(60, 60));
+        Right.setPreferredSize(new Dimension(buttonSize,buttonSize));
         Right.setFocusPainted(false);
-        Right.setBackground(Color.ORANGE);
-        Right.setBorderPainted(true);
+        Right.setBorderPainted(false);
+        Right.setContentAreaFilled(false);
         gbc.gridx = 3; // Column 0
         gbc.gridy = 2; // Row 0
         presetPanel.add(Right, gbc);
@@ -578,18 +596,20 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootRight.set(true);
+                System.out.println("Shoot Right preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.shootRight.set(false);
+                System.out.println("Shoot Right preset deactivated");
             }
         });
 
-        outpost.setPreferredSize(new Dimension(60, 60));
+        outpost.setPreferredSize(new Dimension(buttonSize,buttonSize));
         outpost.setFocusPainted(false);
-        outpost.setBackground(Color.ORANGE);
-        outpost.setBorderPainted(true);
+        outpost.setBorderPainted(false);
+        outpost.setContentAreaFilled(false);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 4; // Row 0
         presetPanel.add(outpost, gbc);
@@ -597,11 +617,13 @@ class BallPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.outpost.set(true);
+                System.out.println("Outpost preset activated");
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 GoToBallLine.outpost.set(false);
+                System.out.println("Outpost preset deactivated");
             }
         });
 
