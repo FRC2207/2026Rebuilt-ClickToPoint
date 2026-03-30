@@ -9,6 +9,7 @@ application {
 }
 
 task extractJNI {
+    outputs.upToDateWhen { false } // Never skip this task, always re-run it
     doLast {
         def jniDir = file("${project.projectDir}/build/jni/release")
         jniDir.mkdirs()
@@ -25,6 +26,11 @@ task extractJNI {
             }
         }
     }
+}
+
+// Force extractJNI to run before ANY Java compilation, not just runGoToBallLine
+tasks.withType(JavaCompile).configureEach {
+    dependsOn extractJNI
 }
 
 task runGoToBallLine(type: JavaExec, dependsOn: 'extractJNI') {
