@@ -13,6 +13,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -22,34 +23,62 @@ import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import frc.robot.FuelStruct;
 
-
-public class GoToBallLine{
+public class GoToBallLine {
     // 2026 FRC field dimensions (in meters)
     static final double FIELD_HEIGHT = 16.46; // 54 feet
-    static final double FIELD_WIDTH = 8.23;   // 27 feet
+    static final double FIELD_WIDTH = 8.23; // 27 feet
     static final double FIELD_LENGTH_MARGIN = 0.3;
     static final double FIELD_WIDTH_MARGIN = 0.2;
     static final double IMAGE_WIDTH_METERS = FIELD_WIDTH + FIELD_WIDTH_MARGIN * 2;
     static final double IMAGE_HEIGHT_METERS = FIELD_HEIGHT + FIELD_LENGTH_MARGIN * 2;
-    static final int PIXELS_PER_METER = 50;   // Scale factor for display
+    static final int PIXELS_PER_METER = 50; // Scale factor for display
     static final double ROBOT_WIDTH = 1.080;
     static final double ROBOT_HIEGHT = 0.705;
     public static NetworkTableInstance inst;
     public static NetworkTable table;
     public static NetworkTable poseTable;
+    public static NetworkTable presetsTable;
+    // Publishers for preset buttons (initialized in main)
+    public static BooleanPublisher trenchLeft;
+    public static BooleanPublisher trenchRight;
+    public static BooleanPublisher shootLeft;
+    public static BooleanPublisher shootMiddle;
+    public static BooleanPublisher shootRight;
+    public static BooleanPublisher outpost;
     public static StructArraySubscriber<FuelStruct> fuelSub;
     public static StructSubscriber<Pose2d> poseSub;
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
     public static edu.wpi.first.networktables.BooleanSubscriber isRedAllianceSub;
-    
+
     public static void main(String[] args) {
         inst = NetworkTableInstance.getDefault();
         table = inst.getTable("VisionData");
         poseTable = inst.getTable("AdvantageKit");
+        presetsTable = inst.getTable("PresetTriggers");
+
         inst.startClient4("GoToBallViewer");
-        inst.setServer("localhost", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
+        inst.setServer("localhost", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not,
+                                           // it should be your team number(10.22.7.2)
+
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
+
+        // Initialize preset publishers (make them static so UI code can access them)
+        trenchLeft = presetsTable.getBooleanTopic("Trench Left").publish();
+        trenchRight = presetsTable.getBooleanTopic("Trench Right").publish();
+        shootLeft = presetsTable.getBooleanTopic("ShootL").publish();
+        shootMiddle = presetsTable.getBooleanTopic("ShootM").publish();
+        shootRight = presetsTable.getBooleanTopic("ShootR").publish();
+        outpost = presetsTable.getBooleanTopic("Outpost").publish();
+
+        // Default values
+        trenchLeft.set(false);
+        trenchRight.set(false);
+        shootLeft.set(false);
+        shootMiddle.set(false);
+        shootRight.set(false);
+        outpost.set(false);
+
         isRedAllianceSub = inst.getTable("FMSInfo").getBooleanTopic("IsRedAlliance").subscribe(false);
         SwingUtilities.invokeLater(() -> {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -58,49 +87,48 @@ public class GoToBallLine{
             JFrame frame = new JFrame("FRC Live Field Click To Point");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // If window is closed, program is stopped.
             frame.setSize(
-                (int)(IMAGE_HEIGHT_METERS * PIXELS_PER_METER),
-                (int)(IMAGE_WIDTH_METERS * PIXELS_PER_METER)
-            );
+                    (int) (IMAGE_HEIGHT_METERS * PIXELS_PER_METER),
+                    (int) (IMAGE_WIDTH_METERS * PIXELS_PER_METER));
             frame.setLocationRelativeTo(null);
             BallPanel panel = new BallPanel();
             frame.add(panel);
-             // Load the image
+            // Load the image
             Image icon = Toolkit.getDefaultToolkit().getImage("src/main/java/frc/robot/ClickToPoint Logo.png");
-            
+
             // Set the icon
             frame.setIconImage(icon);
-            
-            if(screenDevices.length > 1){
+
+            if (screenDevices.length > 1) {
                 Rectangle bounds = screenDevices[1].getDefaultConfiguration().getBounds();
                 frame.setLocation(bounds.x, bounds.y);
                 frame.setExtendedState(Frame.MAXIMIZED_BOTH);
                 frame.setUndecorated(true);
             }
             frame.setVisible(true);
-            
+
         });
     }
 
 }
 
 class Ball {
-    double xMeters, yMeters;  // Field coordinates in meters
-    int radius = 10;  // Ball radius in pixels
-    
+    double xMeters, yMeters; // Field coordinates in meters
+    int radius = 10; // Ball radius in pixels
+
     public Ball(double xMeters, double yMeters) {
         this.xMeters = xMeters;
         this.yMeters = yMeters;
     }
-    
+
     // Convert meter coordinates to pixel coordinates for display
     int getPixelX() {
-        return (int)(xMeters * GoToBallLine.PIXELS_PER_METER) + 25;
+        return (int) (xMeters * GoToBallLine.PIXELS_PER_METER) + 25;
     }
-    
+
     int getPixelY() {
-        return (int)(yMeters * GoToBallLine.PIXELS_PER_METER) + 25;
+        return (int) (yMeters * GoToBallLine.PIXELS_PER_METER) + 25;
     }
-    
+
     public boolean contains(int px, int py) {
         int dx = getPixelX() - px;
         int dy = getPixelY() - py;
@@ -112,12 +140,12 @@ class NavGrid {
     double fieldWidth, fieldHeight;
     double nodeSize;
     boolean[][] grid;
-    
+
     public NavGrid(String jsonPath) {
-        fieldWidth = 16.54;  // Default from navgrid
-        fieldHeight = 8.07;  // Default from navgrid
-        nodeSize = 0.3;      // Default
-        
+        fieldWidth = 16.54; // Default from navgrid
+        fieldHeight = 8.07; // Default from navgrid
+        nodeSize = 0.3; // Default
+
         try {
             String content = new String(Files.readAllBytes(new File(jsonPath).toPath()));
             parseJson(content);
@@ -127,22 +155,22 @@ class NavGrid {
             grid = new boolean[0][0];
         }
     }
-    
+
     private void parseJson(String json) {
         // Extract field_size (x and y coordinates)
         fieldWidth = extractJsonDouble(json, "\"x\":");
         fieldHeight = extractJsonDouble(json, "\"y\":");
-        
+
         // Extract nodeSizeMeters
         nodeSize = extractJsonDouble(json, "\"nodeSizeMeters\":");
-        
+
         // Extract grid - the array starts with "grid":[[
         int gridIndex = json.indexOf("\"grid\":[[");
         if (gridIndex >= 0) {
-            // Start parsing from [[ 
+            // Start parsing from [[
             int startIdx = gridIndex + 7; // Position of first [
             ArrayList<boolean[]> rows = new ArrayList<>();
-            
+
             int i = startIdx;
             while (i < json.length()) {
                 if (json.charAt(i) == '[') {
@@ -152,7 +180,7 @@ class NavGrid {
                         String rowContent = json.substring(i + 1, end);
                         String[] values = rowContent.split(",");
                         boolean[] row = new boolean[values.length];
-                        
+
                         for (int j = 0; j < values.length; j++) {
                             row[j] = values[j].trim().equals("true");
                         }
@@ -168,26 +196,27 @@ class NavGrid {
                     i++;
                 }
             }
-            
+
             if (rows.size() > 0) {
                 grid = new boolean[rows.size()][];
                 for (int j = 0; j < rows.size(); j++) {
                     grid[j] = rows.get(j);
                 }
-                
+
                 // Count walkable vs blocked
                 System.out.println("NavGrid loaded: " + grid.length + " rows x " + grid[0].length + " cols");
             }
         }
     }
-    
+
     private double extractJsonDouble(String json, String key) {
         int pos = json.indexOf(key);
-        if (pos < 0) return 0;
-        
+        if (pos < 0)
+            return 0;
+
         int start = pos + key.length();
         int end = json.length();
-        
+
         // Find next comma or bracket
         for (int i = start; i < json.length(); i++) {
             char c = json.charAt(i);
@@ -196,7 +225,7 @@ class NavGrid {
                 break;
             }
         }
-        
+
         String numStr = json.substring(start, end).trim();
         try {
             return Double.parseDouble(numStr);
@@ -204,15 +233,16 @@ class NavGrid {
             return 0;
         }
     }
-    
+
     // Check if a point (in meters) is walkable
     public boolean isWalkable(double xMeters, double yMeters) {
-        if (grid.length == 0) return true;
-        
+        if (grid.length == 0)
+            return true;
+
         // Convert meters to grid coordinates
-        int gridX = (int)(xMeters / nodeSize);
-        int gridY = (int)(yMeters / nodeSize);
-        
+        int gridX = (int) (xMeters / nodeSize);
+        int gridY = (int) (yMeters / nodeSize);
+
         // Bounds check
         if (gridX < 0 || gridX >= grid[0].length || gridY < 0 || gridY >= grid.length) {
             return false;
@@ -223,15 +253,15 @@ class NavGrid {
 }
 
 class Obstacle {
-    double xMeters, yMeters;  // Field coordinates in meters
-    double radiusMeters;      // Radius in meters
-    
+    double xMeters, yMeters; // Field coordinates in meters
+    double radiusMeters; // Radius in meters
+
     public Obstacle(double xMeters, double yMeters, double radiusMeters) {
         this.xMeters = xMeters;
         this.yMeters = yMeters;
         this.radiusMeters = radiusMeters;
     }
-    
+
     // Check if a point (in meters) collides with this obstacle
     public boolean contains(double x, double y) {
         double dx = x - xMeters;
@@ -250,11 +280,13 @@ class BallPanel extends JPanel {
     boolean ballsAreRobotRelative = false; // Set to true when running on real robot, false for sim
     BufferedImage originalFieldImage;
 
-    private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will replace soon
-        if (fieldImage == null) return true;  // Accept if no image
+    private boolean isValidPosition(double xMeters, double yMeters) { // This is kinda broken and isn't good, will
+                                                                      // replace soon
+        if (fieldImage == null)
+            return true; // Accept if no image
         // Convert field meters to image pixels
-        int pixelX = (int)(xMeters * pixelsPerMeterX);
-        int pixelY = (int)(yMeters * pixelsPerMeterY);
+        int pixelX = (int) (xMeters * pixelsPerMeterX);
+        int pixelY = (int) (yMeters * pixelsPerMeterY);
         // Bounds check
         if (pixelX < 0 || pixelX >= fieldImage.getWidth() || pixelY < 0 || pixelY >= fieldImage.getHeight()) {
             return false;
@@ -278,10 +310,10 @@ class BallPanel extends JPanel {
         Graphics2D g2 = rotated.createGraphics();
         if (flipped) {
             g2.translate(h, 0);
-            g2.rotate(Math.PI / 2);   // CW 90° for red
+            g2.rotate(Math.PI / 2); // CW 90° for red
         } else {
             g2.translate(0, w);
-            g2.rotate(-Math.PI / 2);  // CCW 90° for blue
+            g2.rotate(-Math.PI / 2); // CCW 90° for blue
         }
         g2.drawImage(originalFieldImage, 0, 0, null);
         g2.dispose();
@@ -290,11 +322,14 @@ class BallPanel extends JPanel {
         pixelsPerMeterY = fieldImage.getHeight() / GoToBallLine.IMAGE_HEIGHT_METERS;
         detectFieldBoundaries();
     }
+
     private void detectFieldBoundaries() {
-        if (fieldImage == null) return;
+        if (fieldImage == null)
+            return;
         int width = fieldImage.getWidth();
         int height = fieldImage.getHeight();
-        // Find white rectangle boundaries - look for white pixels (RGB > 200) excluding dark obstacles
+        // Find white rectangle boundaries - look for white pixels (RGB > 200) excluding
+        // dark obstacles
         int minPixelX = width, maxPixelX = 0;
         int minPixelY = height, maxPixelY = 0;
         for (int x = 0; x < width; x++) {
@@ -305,10 +340,14 @@ class BallPanel extends JPanel {
                 int b = rgb & 0xFF;
                 // Check for white pixels that are not dark obstacles
                 if (r > 200 && g > 200 && b > 200) {
-                    if (x < minPixelX) minPixelX = x;
-                    if (x > maxPixelX) maxPixelX = x;
-                    if (y < minPixelY) minPixelY = y;
-                    if (y > maxPixelY) maxPixelY = y;
+                    if (x < minPixelX)
+                        minPixelX = x;
+                    if (x > maxPixelX)
+                        maxPixelX = x;
+                    if (y < minPixelY)
+                        minPixelY = y;
+                    if (y > maxPixelY)
+                        maxPixelY = y;
                 }
             }
         }
@@ -319,16 +358,19 @@ class BallPanel extends JPanel {
         fieldBoundMaxY = maxPixelY / pixelsPerMeterY;
         // Expand boundaries inward to stay INSIDE the white border lines
         // The white lines are the boundary, we want to fill the interior
-        double marginX = 0.08;  // Margin to get inside the border
+        double marginX = 0.08; // Margin to get inside the border
         double marginY = 0.08;
         fieldBoundMinX = Math.max(0, fieldBoundMinX + marginX);
-        fieldBoundMaxX = Math.min(flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_HEIGHT, fieldBoundMaxX - marginX);
+        fieldBoundMaxX = Math.min(flipped ? GoToBallLine.FIELD_WIDTH : GoToBallLine.FIELD_HEIGHT,
+                fieldBoundMaxX - marginX);
         fieldBoundMinY = Math.max(0, fieldBoundMinY + marginY);
-        fieldBoundMaxY = Math.min(flipped ? GoToBallLine.FIELD_HEIGHT : GoToBallLine.FIELD_WIDTH, fieldBoundMaxY - marginY);
-        System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) + 
-            " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" + 
-            String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
+        fieldBoundMaxY = Math.min(flipped ? GoToBallLine.FIELD_HEIGHT : GoToBallLine.FIELD_WIDTH,
+                fieldBoundMaxY - marginY);
+        System.out.println("White rectangle interior: X(" + String.format("%.2f", fieldBoundMinX) +
+                " to " + String.format("%.2f", fieldBoundMaxX) + "), Y(" +
+                String.format("%.2f", fieldBoundMinY) + " to " + String.format("%.2f", fieldBoundMaxY) + ")");
     }
+
     StructPublisher<Pose2d> publisher;
 
     ArrayList<Ball> balls;
@@ -337,16 +379,21 @@ class BallPanel extends JPanel {
     double fieldBoundMinY = 0.0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     FuelStruct hoveredBall = null;
+
     public BallPanel() {
         waypointsPub = GoToBallLine.inst.getTable("VisionData")
-        .getStructArrayTopic("DrawnWaypoints", Pose2d.struct).publish();
+                .getStructArrayTopic("DrawnWaypoints", Pose2d.struct).publish();
         publisher = GoToBallLine.inst.getTable("VisionData")
-        .getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
+                .getStructTopic("TargetPoseClicked", Pose2d.struct).publish();
         balls = new ArrayList<>();
-        
+
         // Load field image - ONLY dependency
         try {
-            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png")); // Path of the field image
+            fieldImage = ImageIO.read(new File("src/main/java/frc/robot/f5h5pjh7whrmr0cwb1v9zgfp5r_result_0.png")); // Path
+                                                                                                                    // of
+                                                                                                                    // the
+                                                                                                                    // field
+                                                                                                                    // image
             originalFieldImage = fieldImage;
             int w = fieldImage.getWidth();
             int h = fieldImage.getHeight();
@@ -354,24 +401,27 @@ class BallPanel extends JPanel {
             Graphics2D g2 = rotated.createGraphics();
             if (flipped) {
                 g2.translate(h, 0); // Recenters field image to prevent image from dissapearing from view
-                g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, pi/2 is 90 degrees instead of a rounded innacurate decimal
+                g2.rotate(Math.PI / 2); // Since g2.rotate is in radians, pi/2 is 90 degrees instead of a rounded
+                                        // innacurate decimal
             }
             g2.drawImage(fieldImage, 0, 0, null);
             g2.dispose();
             fieldImage = rotated;
-            pixelsPerMeterX = fieldImage.getWidth() / (flipped ? GoToBallLine.IMAGE_WIDTH_METERS:GoToBallLine.IMAGE_HEIGHT_METERS);
-            pixelsPerMeterY = fieldImage.getHeight() / (flipped ? GoToBallLine.IMAGE_HEIGHT_METERS:GoToBallLine.IMAGE_WIDTH_METERS);
+            pixelsPerMeterX = fieldImage.getWidth()
+                    / (flipped ? GoToBallLine.IMAGE_WIDTH_METERS : GoToBallLine.IMAGE_HEIGHT_METERS);
+            pixelsPerMeterY = fieldImage.getHeight()
+                    / (flipped ? GoToBallLine.IMAGE_HEIGHT_METERS : GoToBallLine.IMAGE_WIDTH_METERS);
             detectFieldBoundaries();
         } catch (Exception e) {
             System.err.println("Failed to load field image: " + e.getMessage());
             fieldImage = null;
             return;
         }
-        
+
         javax.swing.Timer ntUpdateTimer = new javax.swing.Timer(100, evt -> {
             GoToBallLine.currentPose = GoToBallLine.poseSub.get();
             boolean newFlipped = GoToBallLine.isRedAllianceSub.get();
-            if (newFlipped != lastFlipped){
+            if (newFlipped != lastFlipped) {
                 lastFlipped = newFlipped;
                 flipped = newFlipped;
                 applyRotation();
@@ -403,9 +453,7 @@ class BallPanel extends JPanel {
             repaint();
         });
         ntUpdateTimer.start();
-        
-        
-        
+
         setLayout(new BorderLayout());
         JButton clearButton = new JButton("Clear Path");
         clearButton.setFocusPainted(false);
@@ -427,8 +475,8 @@ class BallPanel extends JPanel {
         add(presetPanel, BorderLayout.SOUTH);
         GridBagConstraints gbc = new GridBagConstraints();
         // TODO: Check these values for the kindle
-        gbc.insets = new Insets(10, 40, 10, 40); // This pixels should be good for the kindle. It is the space around each button 
-
+        gbc.insets = new Insets(10, 40, 10, 40); // This pixels should be good for the kindle. It is the space around
+                                                 // each button
 
         JButton LeftTrench = new JButton("Trench");
         JButton RightTrench = new JButton("Trench");
@@ -436,22 +484,44 @@ class BallPanel extends JPanel {
         JButton Middle = new JButton("ShootM");
         JButton Right = new JButton("ShootR");
         JButton outpost = new JButton("Outpost");
-        //LeftTrench.setMaximumSize(new Dimension(5,5));
-        LeftTrench.setPreferredSize(new Dimension(60,60));
+        // LeftTrench.setMaximumSize(new Dimension(5,5));
+        LeftTrench.setPreferredSize(new Dimension(60, 60));
         LeftTrench.setFocusPainted(false);
         LeftTrench.setForeground(Color.ORANGE);
         LeftTrench.setBorderPainted(true);
         gbc.gridx = 0; // Column 0
         gbc.gridy = 0; // Row 0
         presetPanel.add(LeftTrench, gbc);
+        LeftTrench.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.trenchLeft.set(true);
+            }
 
-        RightTrench.setPreferredSize(new Dimension(60,60));
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.trenchLeft.set(false);
+            }
+        });
+
+        RightTrench.setPreferredSize(new Dimension(60, 60));
         RightTrench.setFocusPainted(false);
         RightTrench.setBackground(Color.ORANGE);
         RightTrench.setBorderPainted(true);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 0; // Row 0
         presetPanel.add(RightTrench, gbc);
+        RightTrench.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.trenchRight.set(true);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.trenchRight.set(false);
+            }
+        });
 
         JButton fillerButton = new JButton();
         fillerButton.setBorderPainted(false);
@@ -459,90 +529,137 @@ class BallPanel extends JPanel {
         gbc.gridy = 1;
         presetPanel.add(fillerButton, gbc);
 
-        Left.setPreferredSize(new Dimension(60,60));
+        Left.setPreferredSize(new Dimension(60, 60));
         Left.setFocusPainted(false);
         Left.setBackground(Color.ORANGE);
         Left.setBorderPainted(true);
         gbc.gridx = 1; // Column 0
         gbc.gridy = 2; // Row 0
         presetPanel.add(Left, gbc);
+        Left.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.shootLeft.set(true);
+            }
 
-        Middle.setPreferredSize(new Dimension(60,60));
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.shootLeft.set(false);
+            }
+        });
+
+        Middle.setPreferredSize(new Dimension(60, 60));
         Middle.setFocusPainted(false);
         Middle.setBackground(Color.ORANGE);
         Middle.setBorderPainted(true);
         gbc.gridx = 2; // Column 0
         gbc.gridy = 3; // Row 0
         presetPanel.add(Middle, gbc);
+        Middle.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.shootMiddle.set(true);
+            }
 
-        Right.setPreferredSize(new Dimension(60,60));
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.shootMiddle.set(false);
+            }
+        });
+
+        Right.setPreferredSize(new Dimension(60, 60));
         Right.setFocusPainted(false);
         Right.setBackground(Color.ORANGE);
         Right.setBorderPainted(true);
         gbc.gridx = 3; // Column 0
         gbc.gridy = 2; // Row 0
         presetPanel.add(Right, gbc);
+        Right.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.shootRight.set(true);
+            }
 
-        outpost.setPreferredSize(new Dimension(60,60));
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.shootRight.set(false);
+            }
+        });
+
+        outpost.setPreferredSize(new Dimension(60, 60));
         outpost.setFocusPainted(false);
         outpost.setBackground(Color.ORANGE);
         outpost.setBorderPainted(true);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 4; // Row 0
         presetPanel.add(outpost, gbc);
+        outpost.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                GoToBallLine.outpost.set(true);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                GoToBallLine.outpost.set(false);
+            }
+        });
 
         addMouseListener(new MouseAdapter() {
-        @Override
-        public void mousePressed(MouseEvent e) {
-            int panelWidth = getWidth();
-            int panelHeight = getHeight();
-            double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-            double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
-            dragPath.clear();
-            dragPath.add(new double[]{e.getX() / imagePixelsPerMeterX, e.getY() / imagePixelsPerMeterY});
-            isDragging = true;
-            repaint();
-        }
-        @Override
-        public void mouseReleased(MouseEvent e) {
-            if (!isDragging) return;
-            isDragging = false;
-            if (dragPath.size() < 2) return;
+            @Override
+            public void mousePressed(MouseEvent e) {
+                int panelWidth = getWidth();
+                int panelHeight = getHeight();
+                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
+                dragPath.clear();
+                dragPath.add(new double[] { e.getX() / imagePixelsPerMeterX, e.getY() / imagePixelsPerMeterY });
+                isDragging = true;
+                repaint();
+            }
 
-            // Resample path to evenly spaced waypoints 0.5m apart
-            double spacing = 0.5;
-            java.util.List<Pose2d> waypoints = new java.util.ArrayList<>();
-            double accumulated = 0;
-            for (int i = 1; i < dragPath.size(); i++) {
-                double[] prev = dragPath.get(i - 1);
-                double[] curr = dragPath.get(i);
-                double dx = curr[0] - prev[0];
-                double dy = curr[1] - prev[1];
-                double segLen = Math.sqrt(dx * dx + dy * dy);
-                accumulated += segLen;
-                if (accumulated >= spacing || i == 1) {
-                    accumulated = 0;
-                    double fieldAngle = flipped ? Math.atan2(-dy, dx): Math.atan2(dy, -dx);
-                    double fieldX = flipped ? curr[1] : GoToBallLine.IMAGE_HEIGHT_METERS - curr[1];
-                    double fieldY = flipped ? curr[0] : GoToBallLine.IMAGE_WIDTH_METERS - curr[0];
-                    waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2)));
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (!isDragging)
+                    return;
+                isDragging = false;
+                if (dragPath.size() < 2)
+                    return;
+
+                // Resample path to evenly spaced waypoints 0.5m apart
+                double spacing = 0.5;
+                java.util.List<Pose2d> waypoints = new java.util.ArrayList<>();
+                double accumulated = 0;
+                for (int i = 1; i < dragPath.size(); i++) {
+                    double[] prev = dragPath.get(i - 1);
+                    double[] curr = dragPath.get(i);
+                    double dx = curr[0] - prev[0];
+                    double dy = curr[1] - prev[1];
+                    double segLen = Math.sqrt(dx * dx + dy * dy);
+                    accumulated += segLen;
+                    if (accumulated >= spacing || i == 1) {
+                        accumulated = 0;
+                        double fieldAngle = flipped ? Math.atan2(-dy, dx) : Math.atan2(dy, -dx);
+                        double fieldX = flipped ? curr[1] : GoToBallLine.IMAGE_HEIGHT_METERS - curr[1];
+                        double fieldY = flipped ? curr[0] : GoToBallLine.IMAGE_WIDTH_METERS - curr[0];
+                        waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2)));
+                    }
                 }
-            }
-            if (waypoints.size()>35){
-                java.util.List<Pose2d> downsampled = new java.util.ArrayList<>();
-                for (int i = 0; i < 35; i++) {
-                    int index = (int)Math.round(i * (waypoints.size() - 1) / 34.0);
-                    downsampled.add(waypoints.get(index));
+                if (waypoints.size() > 35) {
+                    java.util.List<Pose2d> downsampled = new java.util.ArrayList<>();
+                    for (int i = 0; i < 35; i++) {
+                        int index = (int) Math.round(i * (waypoints.size() - 1) / 34.0);
+                        downsampled.add(waypoints.get(index));
+                    }
+                    waypoints = downsampled;
                 }
-                waypoints = downsampled;
+                waypointsPub.set(waypoints.toArray(new Pose2d[0]));
+                publisher.set(waypoints.get(0));
+                System.out.println("Published " + waypoints.size() + " waypoints");
+                repaint();
             }
-            waypointsPub.set(waypoints.toArray(new Pose2d[0]));
-            publisher.set(waypoints.get(0));
-            System.out.println("Published " + waypoints.size() + " waypoints");
-            repaint();
-        }
-    });
-        
+        });
+
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
@@ -557,11 +674,13 @@ class BallPanel extends JPanel {
                     double[] last = dragPath.get(dragPath.size() - 1);
                     double dx = x - last[0];
                     double dy = y - last[1];
-                    if (Math.sqrt(dx * dx + dy * dy) < 0.05) return;
+                    if (Math.sqrt(dx * dx + dy * dy) < 0.05)
+                        return;
                 }
-                dragPath.add(new double[]{x, y});
+                dragPath.add(new double[] { x, y });
                 repaint();
             }
+
             @Override
             public void mouseMoved(MouseEvent e) {
                 int panelWidth = getWidth();
@@ -586,7 +705,7 @@ class BallPanel extends JPanel {
             }
         });
     }
-    
+
     @Override
     protected void paintComponent(Graphics g) { // This draws all of the graphical stuff
         super.paintComponent(g);
@@ -599,16 +718,16 @@ class BallPanel extends JPanel {
             double panelPixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
             double panelPixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
             for (FuelStruct ball : vision_data) {
-                int pixelX = (int)((ball.x + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterX);
-                int pixelY = (int)((ball.y + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterY);
-                int pixelRadius = Math.max(3, (int)(0.1 * panelPixelsPerMeterX));
+                int pixelX = (int) ((ball.x + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterX);
+                int pixelY = (int) ((ball.y + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterY);
+                int pixelRadius = Math.max(3, (int) (0.1 * panelPixelsPerMeterX));
                 g2d.setColor(Color.YELLOW);
                 g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius,
-                            pixelRadius * 2, pixelRadius * 2);
+                        pixelRadius * 2, pixelRadius * 2);
                 g2d.setColor(Color.BLACK);
                 g2d.setStroke(new BasicStroke(2));
                 g2d.drawOval(pixelX - pixelRadius, pixelY - pixelRadius,
-                            pixelRadius * 2, pixelRadius * 2);
+                        pixelRadius * 2, pixelRadius * 2);
             }
             // Draw the drag line
             if (!dragPath.isEmpty()) {
@@ -619,14 +738,14 @@ class BallPanel extends JPanel {
                 for (int i = 1; i < dragPath.size(); i++) {
                     double[] prev = dragPath.get(i - 1);
                     double[] curr = dragPath.get(i);
-                    int x1 = (int)((prev[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
-                    int y1 = (int)((prev[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
-                    int x2 = (int)((curr[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
-                    int y2 = (int)((curr[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
+                    int x1 = (int) ((prev[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y1 = (int) ((prev[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
+                    int x2 = (int) ((curr[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y2 = (int) ((curr[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
                     g2d.drawLine(x1, y1, x2, y2);
                 }
             }
-            //Draw the robot!
+            // Draw the robot!
             Pose2d robotPose = GoToBallLine.currentPose;
             double rawX = robotPose.getX();
             double rawY = robotPose.getY();
@@ -641,31 +760,29 @@ class BallPanel extends JPanel {
             double sinR = Math.sin(displayRot);
             // Four corners relative to center, rotated
             double[][] corners = {
-                {-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}
+                    { -hw, -hh }, { hw, -hh }, { hw, hh }, { -hw, hh }
             };
             int[] pixelBotX = new int[4];
             int[] pixelBotY = new int[4];
             for (int i = 0; i < 4; i++) {
                 double rx = corners[i][0] * cosR - corners[i][1] * sinR + displayX;
                 double ry = corners[i][0] * sinR + corners[i][1] * cosR + displayY;
-                pixelBotX[i] = (int)(rx * panelPixelsPerMeterX);
-                pixelBotY[i] = (int)(ry * panelPixelsPerMeterY);
+                pixelBotX[i] = (int) (rx * panelPixelsPerMeterX);
+                pixelBotY[i] = (int) (ry * panelPixelsPerMeterY);
             }
             g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
             g2d.setStroke(new BasicStroke(5));
             g2d.drawPolygon(pixelBotX, pixelBotY, 4);
 
             // Draw heading arrow from center
-            int centerPixelX = (int)(displayX * panelPixelsPerMeterX);
-            int centerPixelY = (int)(displayY * panelPixelsPerMeterY);
-            int arrowLen = (int)(0.3 * panelPixelsPerMeterX);
-            int arrowEndX = centerPixelX + (int)(Math.cos(displayRot + Math.PI/2) * arrowLen);
-            int arrowEndY = centerPixelY + (int)(Math.sin(displayRot+ Math.PI/2) * arrowLen);
+            int centerPixelX = (int) (displayX * panelPixelsPerMeterX);
+            int centerPixelY = (int) (displayY * panelPixelsPerMeterY);
+            int arrowLen = (int) (0.3 * panelPixelsPerMeterX);
+            int arrowEndX = centerPixelX + (int) (Math.cos(displayRot + Math.PI / 2) * arrowLen);
+            int arrowEndY = centerPixelY + (int) (Math.sin(displayRot + Math.PI / 2) * arrowLen);
             g2d.setColor(Color.WHITE);
             g2d.setStroke(new BasicStroke(3));
             g2d.drawLine(centerPixelX, centerPixelY, arrowEndX, arrowEndY);
-
-            
 
         } else {
             g2d.setColor(Color.LIGHT_GRAY);
