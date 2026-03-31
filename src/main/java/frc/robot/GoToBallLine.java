@@ -769,8 +769,8 @@ class BallPanel extends JPanel {
             }
             // Draw the robot!
             Pose2d robotPose = GoToBallLine.currentPose;
-            double rawX = robotPose.getX();
-            double rawY = robotPose.getY();
+            double rawX = robotPose.getY(); // I know that X and Y are flipped this is intentional to combat weird flipping
+            double rawY = robotPose.getX();
             double rawRot = robotPose.getRotation().getRadians() - Math.PI / 2;
             // Rotate pose to display coords same as balls
             double displayX = rawX + GoToBallLine.FIELD_WIDTH_MARGIN;
