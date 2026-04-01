@@ -479,7 +479,7 @@ class BallPanel extends JPanel {
         add(presetPanel, BorderLayout.SOUTH);
         GridBagConstraints gbc = new GridBagConstraints();
         // TODO: Check these values for the kindle
-        gbc.insets = new Insets(10, 70, 50, 70); // This pixels should be good for the kindle. It is the space around
+        gbc.insets = new Insets(0, 0, 0, 0); // This pixels should be good for the kindle. It is the space around
                                                  // each button
         URL iconURL = BallPanel.class.getResource("\\ClickToPoint Preset Point.png");
         ImageIcon iconImage = new ImageIcon(iconURL);
@@ -490,7 +490,7 @@ class BallPanel extends JPanel {
         JButton Right = new JButton(iconImage);
         JButton outpost = new JButton(iconImage);
 
-        int buttonSize = 100;
+        int buttonSize = 200;
         // LeftTrench.setMaximumSize(new Dimension(5,5));
         LeftTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
         LeftTrench.setFocusPainted(false);
@@ -664,7 +664,7 @@ class BallPanel extends JPanel {
                         double fieldAngle = flipped ? Math.atan2(-dy, dx) : Math.atan2(dy, -dx);
                         double fieldX = flipped ? curr[1] : GoToBallLine.IMAGE_HEIGHT_METERS - curr[1];
                         double fieldY = flipped ? curr[0] : GoToBallLine.IMAGE_WIDTH_METERS - curr[0];
-                        waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2)));
+                        waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2))); //TODO: Make this keep bot's OG position on first waypoint maybe
                     }
                 }
                 if (waypoints.size() > 35) {
