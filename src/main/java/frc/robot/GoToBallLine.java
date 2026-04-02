@@ -48,17 +48,14 @@ public class GoToBallLine {
     public static StructSubscriber<Pose2d> poseSub;
     public static Pose2d currentPose = new Pose2d(0, 0, new Rotation2d());
     public static edu.wpi.first.networktables.BooleanSubscriber isRedAllianceSub;
-
+    public static boolean simActive = false;
     public static void main(String[] args) {
         inst = NetworkTableInstance.getDefault();
         table = inst.getTable("VisionData");
         poseTable = inst.getTable("AdvantageKit");
         presetsTable = inst.getTable("PresetTriggers");
-
         inst.startClient4("GoToBallViewer");
-        inst.setServer("10.22.7.2", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not,
-                                           // it should be your team number(10.22.7.2)
-
+        inst.setServer("10.22.7.2", 5810); // IMPORTANT: if you are running sim, serverName should be localhost. If not, it should be your team number(10.22.7.2)
         fuelSub = table.getStructArrayTopic("vision_data", FuelStruct.struct).subscribe(new FuelStruct[0]);
         poseSub = poseTable.getStructTopic("RealOutputs/Odometry/Robot", Pose2d.struct).subscribe(new Pose2d());
 
@@ -458,9 +455,16 @@ class BallPanel extends JPanel {
         JButton clearButton = new JButton("Clear Path");
         clearButton.setFont(customFont);
         clearButton.setFocusPainted(false);
-        clearButton.setForeground(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
+        clearButton.setForeground(Color.RED);
         clearButton.setBorderPainted(false);
         clearButton.setPreferredSize(new Dimension(150, 75));
+
+        JButton simButton = new JButton("Simulation");
+        simButton.setFont(customFont);
+        simButton.setFocusPainted(false);
+        simButton.setForeground(GoToBallLine.simActive ? Color.GREEN:Color.RED);
+        simButton.setBorderPainted(false);
+        simButton.setPreferredSize(new Dimension(150, 75));
 
         clearButton.addActionListener(evt2 -> {
             dragPath.clear();
@@ -470,9 +474,34 @@ class BallPanel extends JPanel {
             System.out.println("Cleared path");
         });
 
+        simButton.addActionListener(evt3 -> {
+            GoToBallLine.simActive = !GoToBallLine.simActive;
+            System.out.println(GoToBallLine.simActive);
+            simButton.setForeground(GoToBallLine.simActive ? Color.GREEN:Color.RED);
+            if(GoToBallLine.simActive) {
+                GoToBallLine.inst.disconnect();
+                GoToBallLine.inst.startClient4("GoToBallViewer");
+                GoToBallLine.inst.setServer("localhost", 5810);
+                System.out.println("NT serverName set to localhost");
+                GoToBallLine.table = GoToBallLine.inst.getTable("VisionData");
+                GoToBallLine.poseTable = GoToBallLine.inst.getTable("AdvantageKit");
+                GoToBallLine.presetsTable = GoToBallLine.inst.getTable("PresetTriggers");
+            }
+            else if(!GoToBallLine.simActive) {
+                GoToBallLine.inst.disconnect();
+                GoToBallLine.inst.startClient4("GoToBallViewer");
+                GoToBallLine.inst.setServer("10.22.7.2", 5810);
+                System.out.println("NT serverName set to Team Number");
+                GoToBallLine.table = GoToBallLine.inst.getTable("VisionData");
+                GoToBallLine.poseTable = GoToBallLine.inst.getTable("AdvantageKit");
+                GoToBallLine.presetsTable = GoToBallLine.inst.getTable("PresetTriggers");            
+            }
+            });
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
         buttonPanel.add(clearButton);
+        buttonPanel.add(simButton);
         add(buttonPanel, BorderLayout.NORTH);
         JPanel presetPanel = new JPanel(new GridBagLayout());
         presetPanel.setOpaque(false);
