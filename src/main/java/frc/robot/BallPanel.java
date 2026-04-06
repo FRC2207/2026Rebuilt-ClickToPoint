@@ -13,7 +13,11 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.networktables.StructArrayPublisher;
 
-class BallPanel extends JPanel {
+public class BallPanel extends JPanel {
+
+    // Desired button/icon size (pixels)
+    int buttonSize = 100;
+
     java.util.List<FuelStruct> vision_data = new java.util.ArrayList<>();
     StructArrayPublisher<Pose2d> waypointsPub;
     java.util.List<double[]> dragPath = new java.util.ArrayList<>();
@@ -257,16 +261,30 @@ class BallPanel extends JPanel {
         // TODO: Check these values for the kindle
         gbc.insets = new Insets(0, 0, 0, 0); // This pixels should be good for the kindle. It is the space around
                                                  // each button
-        URL iconURL = BallPanel.class.getResource("\\ClickToPoint Preset Point.png");
-        ImageIcon iconImage = new ImageIcon(iconURL);
+
+        // Try to load the preset icon from the classpath first. Use forward slashes
+        // and absolute path from the package root. Fall back to a file path if not
+        // found (useful when running from the source tree).
+        URL iconURL = BallPanel.class.getResource("/frc/robot/ClickToPoint Preset Point.png");
+        ImageIcon rawIcon;
+        if (iconURL != null) {
+            rawIcon = new ImageIcon(iconURL);
+        } else {
+            // Fallback to loading from the repository path
+            rawIcon = new ImageIcon("src/main/java/frc/robot/ClickToPoint Preset Point.png");
+        }
+
+        // Scale the icon image to the desired button size while keeping the original
+        // image contents. Use a smooth scaling algorithm for better quality.
+        Image scaledImg = rawIcon.getImage().getScaledInstance(buttonSize, buttonSize, Image.SCALE_SMOOTH);
+        ImageIcon iconImage = new ImageIcon(scaledImg);
+
         JButton LeftTrench = new JButton(iconImage);
         JButton RightTrench = new JButton(iconImage);
         JButton Left = new JButton(iconImage);
         JButton Middle = new JButton(iconImage);
         JButton Right = new JButton(iconImage);
         JButton outpost = new JButton(iconImage);
-
-        int buttonSize = 200;
         // LeftTrench.setMaximumSize(new Dimension(5,5));
         LeftTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
         LeftTrench.setFocusPainted(false);

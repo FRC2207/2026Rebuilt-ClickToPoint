@@ -1,6 +1,6 @@
 package frc.robot;
 
-class Ball {
+public class Ball {
     double xMeters, yMeters; // Field coordinates in meters
     int radius = 10; // Ball radius in pixels
 
