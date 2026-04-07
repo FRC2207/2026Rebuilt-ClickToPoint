@@ -16,7 +16,7 @@ import edu.wpi.first.networktables.StructArrayPublisher;
 public class BallPanel extends JPanel {
 
     // Desired button/icon size (pixels)
-    int buttonSize = 100;
+    int buttonSize = 70;
 
     java.util.List<FuelStruct> vision_data = new java.util.ArrayList<>();
     StructArrayPublisher<Pose2d> waypointsPub;
@@ -122,10 +122,23 @@ public class BallPanel extends JPanel {
 
     ArrayList<Ball> balls;
     BufferedImage fieldImage;
+    // Displayed image rectangle (in panel pixels) to preserve aspect ratio
+    int displayImageX = 0;
+    int displayImageY = 0;
+    int displayImageWidth = 0;
+    int displayImageHeight = 0;
+    double displayPixelsPerMeterX = 0;
+    double displayPixelsPerMeterY = 0;
     double fieldBoundMinX = 0.0, fieldBoundMaxX = 16.46;
     double fieldBoundMinY = 0.0, fieldBoundMaxY = 8.23;
     double pixelsPerMeterX, pixelsPerMeterY;
     FuelStruct hoveredBall = null;
+    // Preset icon and buttons (keep as fields so we can resize them)
+    ImageIcon rawIconImage;
+    JButton LeftTrenchBtn, RightTrenchBtn, LeftBtn, MiddleBtn, RightBtn, OutpostBtn;
+    // Panel that holds preset buttons (promoted so we can change constraints at
+    // runtime)
+    JPanel presetPanel;
 
     public BallPanel() {
         waypointsPub = GoToBallLine.inst.getTable("VisionData")
@@ -213,7 +226,7 @@ public class BallPanel extends JPanel {
         JButton simButton = new JButton("Simulation");
         simButton.setFont(customFont);
         simButton.setFocusPainted(false);
-        simButton.setForeground(GoToBallLine.simActive ? Color.GREEN:Color.RED);
+        simButton.setForeground(GoToBallLine.simActive ? Color.GREEN : Color.RED);
         simButton.setBorderPainted(false);
         simButton.setPreferredSize(new Dimension(150, 75));
 
@@ -228,8 +241,8 @@ public class BallPanel extends JPanel {
         simButton.addActionListener(evt3 -> {
             GoToBallLine.simActive = !GoToBallLine.simActive;
             System.out.println(GoToBallLine.simActive);
-            simButton.setForeground(GoToBallLine.simActive ? Color.GREEN:Color.RED);
-            if(GoToBallLine.simActive) {
+            simButton.setForeground(GoToBallLine.simActive ? Color.GREEN : Color.RED);
+            if (GoToBallLine.simActive) {
                 GoToBallLine.inst.disconnect();
                 GoToBallLine.inst.startClient4("GoToBallViewer");
                 GoToBallLine.inst.setServer("localhost", 5810);
@@ -237,30 +250,29 @@ public class BallPanel extends JPanel {
                 GoToBallLine.table = GoToBallLine.inst.getTable("VisionData");
                 GoToBallLine.poseTable = GoToBallLine.inst.getTable("AdvantageKit");
                 GoToBallLine.presetsTable = GoToBallLine.inst.getTable("PresetTriggers");
-            }
-            else if(!GoToBallLine.simActive) {
+            } else if (!GoToBallLine.simActive) {
                 GoToBallLine.inst.disconnect();
                 GoToBallLine.inst.startClient4("GoToBallViewer");
                 GoToBallLine.inst.setServer("10.22.7.2", 5810);
                 System.out.println("NT serverName set to Team Number");
                 GoToBallLine.table = GoToBallLine.inst.getTable("VisionData");
                 GoToBallLine.poseTable = GoToBallLine.inst.getTable("AdvantageKit");
-                GoToBallLine.presetsTable = GoToBallLine.inst.getTable("PresetTriggers");            
+                GoToBallLine.presetsTable = GoToBallLine.inst.getTable("PresetTriggers");
             }
-            });
+        });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
         buttonPanel.add(clearButton);
         buttonPanel.add(simButton);
         add(buttonPanel, BorderLayout.NORTH);
-        JPanel presetPanel = new JPanel(new GridBagLayout());
+        presetPanel = new JPanel(new GridBagLayout());
         presetPanel.setOpaque(false);
         add(presetPanel, BorderLayout.SOUTH);
         GridBagConstraints gbc = new GridBagConstraints();
         // TODO: Check these values for the kindle
-        gbc.insets = new Insets(0, 0, 0, 0); // This pixels should be good for the kindle. It is the space around
-                                                 // each button
+        gbc.insets = new Insets(0, 7, 0, 7); // This pixels should be good for the kindle. It is the space around
+                                             // each button
 
         // Try to load the preset icon from the classpath first. Use forward slashes
         // and absolute path from the package root. Fall back to a file path if not
@@ -273,27 +285,28 @@ public class BallPanel extends JPanel {
             // Fallback to loading from the repository path
             rawIcon = new ImageIcon("src/main/java/frc/robot/ClickToPoint Preset Point.png");
         }
+        rawIconImage = rawIcon;
 
         // Scale the icon image to the desired button size while keeping the original
         // image contents. Use a smooth scaling algorithm for better quality.
         Image scaledImg = rawIcon.getImage().getScaledInstance(buttonSize, buttonSize, Image.SCALE_SMOOTH);
         ImageIcon iconImage = new ImageIcon(scaledImg);
 
-        JButton LeftTrench = new JButton(iconImage);
-        JButton RightTrench = new JButton(iconImage);
-        JButton Left = new JButton(iconImage);
-        JButton Middle = new JButton(iconImage);
-        JButton Right = new JButton(iconImage);
-        JButton outpost = new JButton(iconImage);
+        LeftTrenchBtn = new JButton(iconImage);
+        RightTrenchBtn = new JButton(iconImage);
+        LeftBtn = new JButton(iconImage);
+        MiddleBtn = new JButton(iconImage);
+        RightBtn = new JButton(iconImage);
+        OutpostBtn = new JButton(iconImage);
         // LeftTrench.setMaximumSize(new Dimension(5,5));
-        LeftTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        LeftTrench.setFocusPainted(false);
-        LeftTrench.setBorderPainted(false);
-        LeftTrench.setContentAreaFilled(false);
+        LeftTrenchBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        LeftTrenchBtn.setFocusPainted(false);
+        LeftTrenchBtn.setBorderPainted(false);
+        LeftTrenchBtn.setContentAreaFilled(false);
         gbc.gridx = 0; // Column 0
         gbc.gridy = 0; // Row 0
-        presetPanel.add(LeftTrench, gbc);
-        LeftTrench.addMouseListener(new MouseAdapter() {
+        presetPanel.add(LeftTrenchBtn, gbc);
+        LeftTrenchBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.trenchLeft.set(true);
@@ -307,14 +320,14 @@ public class BallPanel extends JPanel {
             }
         });
 
-        RightTrench.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        RightTrench.setFocusPainted(false);
-        RightTrench.setBorderPainted(false);
-        RightTrench.setContentAreaFilled(false);
+        RightTrenchBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        RightTrenchBtn.setFocusPainted(false);
+        RightTrenchBtn.setBorderPainted(false);
+        RightTrenchBtn.setContentAreaFilled(false);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 0; // Row 0
-        presetPanel.add(RightTrench, gbc);
-        RightTrench.addMouseListener(new MouseAdapter() {
+        presetPanel.add(RightTrenchBtn, gbc);
+        RightTrenchBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.trenchRight.set(true);
@@ -337,14 +350,14 @@ public class BallPanel extends JPanel {
         gbc.gridy = 1;
         presetPanel.add(fillerButton, gbc);
 
-        Left.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        Left.setFocusPainted(false);
-        Left.setBorderPainted(false);
-        Left.setContentAreaFilled(false);
+        LeftBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        LeftBtn.setFocusPainted(false);
+        LeftBtn.setBorderPainted(false);
+        LeftBtn.setContentAreaFilled(false);
         gbc.gridx = 1; // Column 0
         gbc.gridy = 2; // Row 0
-        presetPanel.add(Left, gbc);
-        Left.addMouseListener(new MouseAdapter() {
+        presetPanel.add(LeftBtn, gbc);
+        LeftBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootLeft.set(true);
@@ -358,14 +371,14 @@ public class BallPanel extends JPanel {
             }
         });
 
-        Middle.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        Middle.setFocusPainted(false);
-        Middle.setBorderPainted(false);
-        Middle.setContentAreaFilled(false);
+        MiddleBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        MiddleBtn.setFocusPainted(false);
+        MiddleBtn.setBorderPainted(false);
+        MiddleBtn.setContentAreaFilled(false);
         gbc.gridx = 2; // Column 0
         gbc.gridy = 3; // Row 0
-        presetPanel.add(Middle, gbc);
-        Middle.addMouseListener(new MouseAdapter() {
+        presetPanel.add(MiddleBtn, gbc);
+        MiddleBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootMiddle.set(true);
@@ -379,14 +392,14 @@ public class BallPanel extends JPanel {
             }
         });
 
-        Right.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        Right.setFocusPainted(false);
-        Right.setBorderPainted(false);
-        Right.setContentAreaFilled(false);
+        RightBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        RightBtn.setFocusPainted(false);
+        RightBtn.setBorderPainted(false);
+        RightBtn.setContentAreaFilled(false);
         gbc.gridx = 3; // Column 0
         gbc.gridy = 2; // Row 0
-        presetPanel.add(Right, gbc);
-        Right.addMouseListener(new MouseAdapter() {
+        presetPanel.add(RightBtn, gbc);
+        RightBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.shootRight.set(true);
@@ -400,14 +413,14 @@ public class BallPanel extends JPanel {
             }
         });
 
-        outpost.setPreferredSize(new Dimension(buttonSize,buttonSize));
-        outpost.setFocusPainted(false);
-        outpost.setBorderPainted(false);
-        outpost.setContentAreaFilled(false);
+        OutpostBtn.setPreferredSize(new Dimension(buttonSize, buttonSize));
+        OutpostBtn.setFocusPainted(false);
+        OutpostBtn.setBorderPainted(false);
+        OutpostBtn.setContentAreaFilled(false);
         gbc.gridx = 4; // Column 0
         gbc.gridy = 4; // Row 0
-        presetPanel.add(outpost, gbc);
-        outpost.addMouseListener(new MouseAdapter() {
+        presetPanel.add(OutpostBtn, gbc);
+        OutpostBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 GoToBallLine.outpost.set(true);
@@ -424,12 +437,17 @@ public class BallPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                int panelWidth = getWidth();
-                int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
+                // Only start dragging if click is inside the displayed image rectangle
+                int mx = e.getX();
+                int my = e.getY();
+                if (mx < displayImageX || mx > displayImageX + displayImageWidth || my < displayImageY
+                        || my > displayImageY + displayImageHeight) {
+                    return;
+                }
                 dragPath.clear();
-                dragPath.add(new double[] { e.getX() / imagePixelsPerMeterX, e.getY() / imagePixelsPerMeterY });
+                double meterX = (mx - displayImageX) / displayPixelsPerMeterX;
+                double meterY = (my - displayImageY) / displayPixelsPerMeterY;
+                dragPath.add(new double[] { meterX, meterY });
                 isDragging = true;
                 repaint();
             }
@@ -458,7 +476,15 @@ public class BallPanel extends JPanel {
                         double fieldAngle = flipped ? Math.atan2(-dy, dx) : Math.atan2(dy, -dx);
                         double fieldX = flipped ? curr[1] : GoToBallLine.IMAGE_HEIGHT_METERS - curr[1];
                         double fieldY = flipped ? curr[0] : GoToBallLine.IMAGE_WIDTH_METERS - curr[0];
-                        waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2))); //TODO: Make this keep bot's OG position on first waypoint maybe
+                        waypoints.add(new Pose2d(fieldX, fieldY, new Rotation2d(fieldAngle + Math.PI / 2))); // TODO:
+                                                                                                             // Make
+                                                                                                             // this
+                                                                                                             // keep
+                                                                                                             // bot's OG
+                                                                                                             // position
+                                                                                                             // on first
+                                                                                                             // waypoint
+                                                                                                             // maybe
                     }
                 }
                 if (waypoints.size() > 35) {
@@ -479,12 +505,15 @@ public class BallPanel extends JPanel {
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                int panelWidth = getWidth();
-                int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
-                double x = e.getX() / imagePixelsPerMeterX;
-                double y = e.getY() / imagePixelsPerMeterY;
+                int mx = e.getX();
+                int my = e.getY();
+                // Only add point if inside displayed image
+                if (mx < displayImageX || mx > displayImageX + displayImageWidth || my < displayImageY
+                        || my > displayImageY + displayImageHeight) {
+                    return;
+                }
+                double x = (mx - displayImageX) / displayPixelsPerMeterX;
+                double y = (my - displayImageY) / displayPixelsPerMeterY;
                 // Only add point if moved more than 0.05m to avoid too many points
                 if (!dragPath.isEmpty()) {
                     double[] last = dragPath.get(dragPath.size() - 1);
@@ -499,12 +528,18 @@ public class BallPanel extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                int panelWidth = getWidth();
-                int panelHeight = getHeight();
-                double imagePixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-                double imagePixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
-                double mouseXMeters = e.getX() / imagePixelsPerMeterX;
-                double mouseYMeters = e.getY() / imagePixelsPerMeterY;
+                int mx = e.getX();
+                int my = e.getY();
+                if (mx < displayImageX || mx > displayImageX + displayImageWidth || my < displayImageY
+                        || my > displayImageY + displayImageHeight) {
+                    if (hoveredBall != null) {
+                        hoveredBall = null;
+                        repaint();
+                    }
+                    return;
+                }
+                double mouseXMeters = (mx - displayImageX) / displayPixelsPerMeterX;
+                double mouseYMeters = (my - displayImageY) / displayPixelsPerMeterY;
                 FuelStruct newHoveredBall = null;
                 for (FuelStruct ball : vision_data) {
                     double dx = ball.x - mouseXMeters;
@@ -520,6 +555,16 @@ public class BallPanel extends JPanel {
                 }
             }
         });
+
+        // Resize listener to update icon/button sizes when the panel size (and thus
+        // displayed image size) changes
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                updateDisplayMetrics();
+                updatePresetButtonSizes();
+            }
+        });
     }
 
     @Override
@@ -530,13 +575,38 @@ public class BallPanel extends JPanel {
         if (fieldImage != null) {
             int panelWidth = getWidth();
             int panelHeight = getHeight();
-            g2d.drawImage(fieldImage, 0, 0, panelWidth, panelHeight, this);
-            double panelPixelsPerMeterX = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-            double panelPixelsPerMeterY = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
+            // Fill background with black (letterbox bars)
+            g2d.setColor(Color.BLACK);
+            g2d.fillRect(0, 0, panelWidth, panelHeight);
+
+            // Compute aspect-preserving image rectangle centered in panel
+            double imageAspect = (double) fieldImage.getWidth() / (double) fieldImage.getHeight();
+            double panelAspect = (double) panelWidth / (double) panelHeight;
+            if (panelAspect > imageAspect) {
+                // panel is wider -> image height = panelHeight
+                displayImageHeight = panelHeight;
+                displayImageWidth = (int) Math.round(imageAspect * displayImageHeight);
+                displayImageX = (panelWidth - displayImageWidth) / 2;
+                displayImageY = 0;
+            } else {
+                // panel is taller -> image width = panelWidth
+                displayImageWidth = panelWidth;
+                displayImageHeight = (int) Math.round(displayImageWidth / imageAspect);
+                displayImageX = 0;
+                displayImageY = (panelHeight - displayImageHeight) / 2;
+            }
+
+            // Draw the image into the computed rectangle (no stretching beyond aspect)
+            g2d.drawImage(fieldImage, displayImageX, displayImageY, displayImageWidth, displayImageHeight, this);
+
+            displayPixelsPerMeterX = (double) displayImageWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+            displayPixelsPerMeterY = (double) displayImageHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
             for (FuelStruct ball : vision_data) {
-                int pixelX = (int) ((ball.x + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterX);
-                int pixelY = (int) ((ball.y + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterY);
-                int pixelRadius = Math.max(3, (int) (0.1 * panelPixelsPerMeterX));
+                int pixelX = displayImageX
+                        + (int) ((ball.x + GoToBallLine.FIELD_WIDTH_MARGIN) * displayPixelsPerMeterX);
+                int pixelY = displayImageY
+                        + (int) ((ball.y + GoToBallLine.FIELD_LENGTH_MARGIN) * displayPixelsPerMeterY);
+                int pixelRadius = Math.max(3, (int) (0.1 * displayPixelsPerMeterX));
                 g2d.setColor(Color.YELLOW);
                 g2d.fillOval(pixelX - pixelRadius, pixelY - pixelRadius,
                         pixelRadius * 2, pixelRadius * 2);
@@ -547,17 +617,21 @@ public class BallPanel extends JPanel {
             }
             // Draw the drag line
             if (!dragPath.isEmpty()) {
-                double panelPixelsPerMeterXLine = panelWidth / GoToBallLine.IMAGE_WIDTH_METERS;
-                double panelPixelsPerMeterYLine = panelHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
+                double panelPixelsPerMeterXLine = displayPixelsPerMeterX;
+                double panelPixelsPerMeterYLine = displayPixelsPerMeterY;
                 g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
                 g2d.setStroke(new BasicStroke(3));
                 for (int i = 1; i < dragPath.size(); i++) {
                     double[] prev = dragPath.get(i - 1);
                     double[] curr = dragPath.get(i);
-                    int x1 = (int) ((prev[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
-                    int y1 = (int) ((prev[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
-                    int x2 = (int) ((curr[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
-                    int y2 = (int) ((curr[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
+                    int x1 = displayImageX
+                            + (int) ((prev[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y1 = displayImageY
+                            + (int) ((prev[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
+                    int x2 = displayImageX
+                            + (int) ((curr[0] + GoToBallLine.FIELD_WIDTH_MARGIN) * panelPixelsPerMeterXLine);
+                    int y2 = displayImageY
+                            + (int) ((curr[1] + GoToBallLine.FIELD_LENGTH_MARGIN) * panelPixelsPerMeterYLine);
                     g2d.drawLine(x1, y1, x2, y2);
                 }
             }
@@ -583,17 +657,17 @@ public class BallPanel extends JPanel {
             for (int i = 0; i < 4; i++) {
                 double rx = corners[i][0] * cosR - corners[i][1] * sinR + displayX;
                 double ry = corners[i][0] * sinR + corners[i][1] * cosR + displayY;
-                pixelBotX[i] = (int) (rx * panelPixelsPerMeterX);
-                pixelBotY[i] = (int) (ry * panelPixelsPerMeterY);
+                pixelBotX[i] = displayImageX + (int) (rx * displayPixelsPerMeterX);
+                pixelBotY[i] = displayImageY + (int) (ry * displayPixelsPerMeterY);
             }
             g2d.setColor(flipped ? Color.decode("#9a2928") : Color.decode("#222299"));
             g2d.setStroke(new BasicStroke(5));
             g2d.drawPolygon(pixelBotX, pixelBotY, 4);
 
             // Draw heading arrow from center
-            int centerPixelX = (int) (displayX * panelPixelsPerMeterX);
-            int centerPixelY = (int) (displayY * panelPixelsPerMeterY);
-            int arrowLen = (int) (0.3 * panelPixelsPerMeterX);
+            int centerPixelX = displayImageX + (int) (displayX * displayPixelsPerMeterX);
+            int centerPixelY = displayImageY + (int) (displayY * displayPixelsPerMeterY);
+            int arrowLen = (int) (0.3 * displayPixelsPerMeterX);
             int arrowEndX = centerPixelX + (int) (Math.cos(displayRot + Math.PI / 2) * arrowLen);
             int arrowEndY = centerPixelY + (int) (Math.sin(displayRot + Math.PI / 2) * arrowLen);
             g2d.setColor(Color.WHITE);
@@ -604,5 +678,81 @@ public class BallPanel extends JPanel {
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
+    }
+
+    // Compute displayed image rectangle and pixel-to-meter scales. Safe to call
+    // anytime.
+    private void updateDisplayMetrics() {
+        if (fieldImage == null) {
+            displayImageX = displayImageY = displayImageWidth = displayImageHeight = 0;
+            displayPixelsPerMeterX = displayPixelsPerMeterY = 0;
+            return;
+        }
+        int panelWidth = getWidth();
+        int panelHeight = getHeight();
+        double imageAspect = (double) fieldImage.getWidth() / (double) fieldImage.getHeight();
+        double panelAspect = (double) panelWidth / (double) panelHeight;
+        if (panelAspect > imageAspect) {
+            displayImageHeight = panelHeight;
+            displayImageWidth = (int) Math.round(imageAspect * displayImageHeight);
+            displayImageX = (panelWidth - displayImageWidth) / 2;
+            displayImageY = 0;
+        } else {
+            displayImageWidth = panelWidth;
+            displayImageHeight = (int) Math.round(displayImageWidth / imageAspect);
+            displayImageX = 0;
+            displayImageY = (panelHeight - displayImageHeight) / 2;
+        }
+        displayPixelsPerMeterX = (double) displayImageWidth / GoToBallLine.IMAGE_WIDTH_METERS;
+        displayPixelsPerMeterY = (double) displayImageHeight / GoToBallLine.IMAGE_HEIGHT_METERS;
+    }
+
+    // Rescale preset icon buttons based on displayed image size.
+    private void updatePresetButtonSizes() {
+        if (rawIconImage == null)
+            return;
+        // Scale button size relative to displayed image width.
+        // Increase base size by 15% and allow smaller minimum if window is very small.
+        int newSize = 70; // fallback base
+        if (displayImageWidth > 0) {
+            // base proportional size
+            int base = displayImageWidth / 8;
+            // make 15% larger
+            double scaled = base * 1.2;
+            // allow smaller minimum when very small windows
+            int minSize = Math.max(12, (int) (displayImageWidth / 30));
+            // cap so multiple buttons fit inside the displayed image: max about 1/5 of
+            // image width
+            int maxSize = Math.max(30, displayImageWidth / 5);
+            newSize = (int) Math.round(Math.max(minSize, Math.min(maxSize, scaled)));
+        }
+        Image scaled = rawIconImage.getImage().getScaledInstance(newSize, newSize, Image.SCALE_SMOOTH);
+        ImageIcon scaledIcon = new ImageIcon(scaled);
+        JButton[] btns = { LeftTrenchBtn, RightTrenchBtn, LeftBtn, MiddleBtn, RightBtn, OutpostBtn };
+        for (JButton b : btns) {
+            if (b == null)
+                continue;
+            b.setIcon(scaledIcon);
+            b.setPreferredSize(new Dimension(newSize, newSize));
+        }
+        // Adjust spacing (GridBagConstraints.insets) so buttons get closer as the image
+        // shrinks.
+        if (presetPanel != null && presetPanel.getLayout() instanceof GridBagLayout) {
+            GridBagLayout gbl = (GridBagLayout) presetPanel.getLayout();
+            int horizInset = 7; // default
+            if (displayImageWidth > 0) {
+                horizInset = (int) Math.round(displayImageWidth / 140.0);
+                horizInset = Math.max(2, Math.min(20, horizInset));
+            }
+            for (JButton b : btns) {
+                if (b == null)
+                    continue;
+                GridBagConstraints c = gbl.getConstraints(b);
+                c.insets = new Insets(0, horizInset, 0, horizInset);
+                gbl.setConstraints(b, c);
+            }
+        }
+        revalidate();
+        repaint();
     }
 }
